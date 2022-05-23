@@ -96,7 +96,7 @@ func sendLogs(ld logData) {
 			postStr = fmt.Sprintf("http://127.0.0.1:8080/update/%s/%s/%d", typeVar[5:], nameVar, valueVar)
 		}
 		//fmt.Println(postStr)
-		http.Post(postStr, "Content-Type: text/plain", nil)
+		http.Post(postStr, "text/plain", nil)
 		log.Printf("Transfer data %s", postStr)
 	}
 	log.Printf("Sended data #%d with rnd %x", ld.PollCount, ld.RandomValue)
