@@ -22,7 +22,7 @@ func main() {
 			return
 		}
 		if (tdv[0] != "gauge") && (tdv[0] != "counter") {
-			http.Error(w, "Type not found!", http.StatusNotFound)
+			http.Error(w, "Type not found!", http.StatusNotImplemented)
 			return
 		}
 		if tdv[0] == "gauge" {
