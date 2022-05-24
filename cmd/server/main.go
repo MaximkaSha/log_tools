@@ -19,7 +19,7 @@ func main() {
 			return
 		}
 		if "text/plain" != r.Header.Get("Content-type") {
-			http.Error(w, "Only text/plain are allowed!", http.StatusBadGateway)
+			http.Error(w, "Only text/plain are allowed!", http.StatusOK)
 			return
 		}
 		s := strings.Split(r.RequestURI, "/")
@@ -28,7 +28,7 @@ func main() {
 		ff, _ := strconv.ParseFloat(s[4], 64)
 		f.SetFloat(ff)
 		log.Printf("Added data #%s with rnd %s", s[3], s[4])
-		http.Error(w, "OK", http.StatusOK)
+		w.WriteHeader(http.StatusOK)
 	})
 	http.HandleFunc("/update/counter/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -37,7 +37,7 @@ func main() {
 			return
 		}
 		if "text/plain" != r.Header.Get("Content-type") {
-			http.Error(w, "Only text/plain are allowed!", http.StatusBadGateway)
+			http.Error(w, "Only text/plain are allowed!", http.StatusOK)
 			fmt.Println(r.Header.Get("Content-type"))
 			return
 		}
@@ -50,7 +50,7 @@ func main() {
 		f.SetInt(oldData + ff)
 		log.Printf("Added data %s with rnd %s", s[3], s[4])
 		fmt.Println(logData)
-		http.Error(w, "OK", http.StatusOK)
+		w.WriteHeader(http.StatusOK)
 	})
 
 	//fmt.Print(logData)
