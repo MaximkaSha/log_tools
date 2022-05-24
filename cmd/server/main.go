@@ -2,58 +2,49 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
-	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/MaximkaSha/log_tools/internal/storage"
+	"github.com/MaximkaSha/log_tools/internal/utils"
 )
 
 func main() {
-	var logData = new(storage.LogData)
-	http.HandleFunc("/update/gauge/", func(w http.ResponseWriter, r *http.Request) {
+	repo := storage.NewRepo()
+	http.HandleFunc("/update/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 			return
 		}
-		if "text/plain" != r.Header.Get("Content-type") {
-			http.Error(w, "Only text/plain are allowed!", http.StatusOK)
+		tdv := strings.Split(r.RequestURI, "/")[2:]
+		if len(tdv) != 3 {
+			http.Error(w, "Name or value not found!", http.StatusNotFound)
 			return
 		}
-		s := strings.Split(r.RequestURI, "/")
-		reflectLogData := reflect.ValueOf(logData)
-		f := reflect.Indirect(reflectLogData).FieldByName(s[3])
-		ff, _ := strconv.ParseFloat(s[4], 64)
-		f.SetFloat(ff)
-		log.Printf("Added data #%s with rnd %s", s[3], s[4])
-		w.WriteHeader(http.StatusOK)
-	})
-	http.HandleFunc("/update/counter/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
-			fmt.Println("post")
+		if (tdv[0] != "gauge") && (tdv[0] != "counter") {
+			http.Error(w, "Type not found!", http.StatusNotFound)
 			return
 		}
-		if "text/plain" != r.Header.Get("Content-type") {
-			http.Error(w, "Only text/plain are allowed!", http.StatusOK)
-			fmt.Println(r.Header.Get("Content-type"))
-			return
+		if tdv[0] == "gauge" {
+			if utils.CheckIfStringIsNumber(tdv[2]) {
+				repo.InsertGouge(tdv[1], tdv[2])
+			} else {
+				http.Error(w, "Bad value found!", http.StatusBadRequest)
+				return
+			}
 		}
-		s := strings.Split(r.RequestURI, "/")
-		reflectLogData := reflect.ValueOf(logData)
-		f := reflect.Indirect(reflectLogData).FieldByName(s[3])
-		//fmt.Fprint(w, f)
-		oldData := f.Int()
-		ff, _ := strconv.ParseInt(s[4], 10, 64)
-		f.SetInt(oldData + ff)
-		log.Printf("Added data %s with rnd %s", s[3], s[4])
-		fmt.Println(logData)
+		if tdv[0] == "counter" {
+			if utils.CheckIfStringIsNumber(tdv[2]) {
+				repo.InsertCount(tdv[1], tdv[2])
+			} else {
+				http.Error(w, "Bad value found!", http.StatusBadRequest)
+				return
+			}
+		}
+		fmt.Print(repo)
 		w.WriteHeader(http.StatusOK)
 	})
 
-	//fmt.Print(logData)
 	fmt.Println("Server is listening...")
 	http.ListenAndServe("127.0.0.1:8080", nil)
 
