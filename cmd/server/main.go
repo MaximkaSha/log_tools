@@ -15,7 +15,7 @@ func main() {
 	handl := handlers.NewHandlers(repo)
 	mux := chi.NewRouter()
 	mux.Post("/update/{type}/{name}/{value}", handl.HandleUpdate)
-	mux.Get("/update/{type}/{name}", handl.HandleGetUpdate)
+	mux.Get("/value/{type}/{name}", handl.HandleGetUpdate)
 	mux.Get("/", handl.HandleGetHome)
 
 	fmt.Println("Server is listening...")
