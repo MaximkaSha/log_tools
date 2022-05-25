@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/MaximkaSha/log_tools/internal/storage"
+	"github.com/go-chi/chi/v5"
 )
 
 func TestHandlers_HandleUpdate(t *testing.T) {
@@ -71,9 +72,12 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			// определяем хендлер
 			repo := storage.NewRepo()
 			handl := NewHandlers(repo)
-			h := http.HandlerFunc(handl.HandleUpdate)
+			mux := chi.NewRouter()
+			mux.Post("/update/{type}/{name}/{value}", handl.HandleUpdate)
+			mux.Get("/update/{type}/{name}", handl.HandleGetUpdate)
+			mux.Get("/", handl.HandleGetHome)
 			// запускаем сервер
-			h.ServeHTTP(w, request)
+			mux.ServeHTTP(w, request)
 			res := w.Result()
 
 			// проверяем код ответа

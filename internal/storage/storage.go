@@ -42,6 +42,19 @@ func NewRepo() Repository {
 	}
 }
 
+func (r Repository) GetAll() map[string]string {
+	return r.db
+}
+
+func (r Repository) GetByName(name string) (string, bool) {
+	//fmt.Println(name)
+	//fmt.Println(r.db[name])
+	if value, ok := r.db[name]; ok {
+		return value, true
+	}
+	return "", false
+}
+
 func (r Repository) insertGouge(name, value string) error {
 	r.db[name] = value
 	return nil
