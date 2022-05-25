@@ -47,8 +47,6 @@ func (r Repository) GetAll() map[string]string {
 }
 
 func (r Repository) GetByName(name string) (string, bool) {
-	//fmt.Println(name)
-	//fmt.Println(r.db[name])
 	if value, ok := r.db[name]; ok {
 		return value, true
 	}
