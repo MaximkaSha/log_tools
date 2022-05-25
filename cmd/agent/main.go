@@ -87,17 +87,18 @@ func sendLogs(ld logData) {
 		typeVar := typeOfS.Field(i).Type.String()
 		nameVar := typeOfS.Field(i).Name
 		valueVar := v.Field(i).Interface()
-		//	fmt.Println(valueVar)
-		//	fmt.Println(nameVar)
-		//	fmt.Println(typeVar[5:])
+		fmt.Println(valueVar)
+		fmt.Println(nameVar)
+		fmt.Println(typeVar[5:])
 		if typeVar[5:] == "gauge" {
 			postStr = fmt.Sprintf("http://127.0.0.1:8080/update/%s/%s/%f", typeVar[5:], nameVar, valueVar)
 		} else {
 			postStr = fmt.Sprintf("http://127.0.0.1:8080/update/%s/%s/%d", typeVar[5:], nameVar, valueVar)
 		}
 		//fmt.Println(postStr)
-		r, _ := http.Post(postStr, "text/plain", nil)
-		r.Body.Close()
+		if r, err := http.Post(postStr, "text/plain", nil); err == nil {
+			r.Body.Close()
+		}
 		log.Printf("Transfer data %s", postStr)
 	}
 	log.Printf("Sended data #%d with rnd %x", ld.PollCount, ld.RandomValue)
