@@ -29,8 +29,8 @@ func (obj Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	valueVal := chi.URLParam(r, "value")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
-		return
+		http.Error(w, "Only POST requests are allowed!", http.StatusMethodNotAllowed) //legacy, before chi refactoring
+		return                                                                        // should be deleted
 	}
 
 	if (typeVal != "gauge") && (typeVal != "counter") {
