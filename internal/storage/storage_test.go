@@ -40,7 +40,7 @@ func TestRepository_insertCount(t *testing.T) {
 			r:    NewRepo(),
 			args: args{
 				name:  "Test",
-				value: "not int",
+				value: "Not int",
 			},
 			wantErr: true,
 		},
@@ -49,7 +49,7 @@ func TestRepository_insertCount(t *testing.T) {
 			r:    NewRepo(),
 			args: args{
 				name:  "Test",
-				value: "not int",
+				value: "Not int",
 			},
 			wantErr: false,
 		},
@@ -97,7 +97,7 @@ func TestRepository_insertGouge(t *testing.T) {
 			r:    NewRepo(),
 			args: args{
 				name:  "Test",
-				value: "not float",
+				value: "Not float",
 			},
 			wantErr: true,
 		},

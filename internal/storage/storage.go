@@ -61,7 +61,7 @@ func (r Repository) insertGouge(name, value string) error {
 		r.db[name] = value
 		return nil
 	}
-	return errors.New("not float")
+	return errors.New("Not float")
 }
 
 func (r Repository) insertCount(name, value string) error {
@@ -74,5 +74,5 @@ func (r Repository) insertCount(name, value string) error {
 		r.db[name] = value
 		return nil
 	}
-	return errors.New("not int")
+	return errors.New("Not int")
 }
