@@ -48,7 +48,7 @@ type logData struct {
 	RandomValue   gauge
 }
 
-func collectLogs(ld *logData, rtm runtime.MemStats) {
+func collectLogs(ld *logData, rtm runtime.MemStats) int64 {
 	runtime.ReadMemStats(&rtm)
 	ld.Alloc = gauge(rtm.Alloc)
 	ld.BuckHashSys = gauge(rtm.BuckHashSys)
@@ -75,6 +75,7 @@ func collectLogs(ld *logData, rtm runtime.MemStats) {
 	ld.RandomValue = gauge(rand.Int63())
 
 	log.Printf("data #%d collected with rnd %x", ld.PollCount, ld.RandomValue)
+	return int64(ld.RandomValue)
 
 }
 

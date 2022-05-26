@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -54,8 +55,11 @@ func (r Repository) GetByName(name string) (string, bool) {
 }
 
 func (r Repository) insertGouge(name, value string) error {
-	r.db[name] = value
-	return nil
+	if _, err := strconv.ParseFloat(value, 64); err == nil {
+		r.db[name] = value
+		return nil
+	}
+	return errors.New("Not float")
 }
 
 func (r Repository) insertCount(name, value string) error {
@@ -63,9 +67,10 @@ func (r Repository) insertCount(name, value string) error {
 		oldInt, _ := strconv.ParseInt(oldVal, 10, 64)
 		newInt, _ := strconv.ParseInt(value, 10, 64)
 		r.db[name] = fmt.Sprint(newInt + oldInt)
-	} else {
+		return nil
+	} else if _, err := strconv.ParseInt(value, 10, 64); err == nil {
 		r.db[name] = value
+		return nil
 	}
-
-	return nil
+	return errors.New("Not int")
 }
