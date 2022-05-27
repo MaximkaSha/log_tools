@@ -9,10 +9,6 @@ import (
 	"github.com/MaximkaSha/log_tools/internal/utils"
 )
 
-type Storager interface {
-	InsertData(typeVar string, name string, value string) int
-}
-
 type Repository struct {
 	db map[string]string
 }

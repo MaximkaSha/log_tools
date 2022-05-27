@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/MaximkaSha/log_tools/internal/storage"
+	//"github.com/MaximkaSha/log_tools/internal/service"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -21,9 +22,8 @@ func NewHandlers(repo storage.Repository) Handlers {
 	}
 }
 
-func (obj Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) {
-	//defer r.Body.Close()
-	//fmt.Println("post")
+func (obj Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //should be renamed to HandlePostUpdate
+
 	typeVal := chi.URLParam(r, "type")
 	nameVal := chi.URLParam(r, "name")
 	valueVal := chi.URLParam(r, "value")

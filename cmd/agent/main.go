@@ -1,13 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
-	"reflect"
 	"runtime"
 	"syscall"
 	"time"
@@ -80,27 +80,22 @@ func collectLogs(ld *logData, rtm runtime.MemStats) int64 {
 }
 
 func sendLogs(ld logData) {
-	v := reflect.ValueOf(ld)
-	typeOfS := v.Type()
+	jjson, _ := json.Marshal(ld)
+	var x map[string]interface{}
+	_ = json.Unmarshal(jjson, &x)
 	var postStr string
-	for i := 0; i < v.NumField(); i++ {
+	for k, v := range x {
 		postStr = ""
-		typeVar := typeOfS.Field(i).Type.String()
-		nameVar := typeOfS.Field(i).Name
-		valueVar := v.Field(i).Interface()
-		//fmt.Println(valueVar)
-		//fmt.Println(nameVar)
-		//fmt.Println(typeVar[5:])
-		if typeVar[5:] == "gauge" {
-			postStr = fmt.Sprintf("http://127.0.0.1:8080/update/%s/%s/%f", typeVar[5:], nameVar, valueVar)
+		if k == "PollCount" {
+			postStr = fmt.Sprintf("http://127.0.0.1:8080/update/counter/%s/%.f", k, v)
+			fmt.Println(postStr)
 		} else {
-			postStr = fmt.Sprintf("http://127.0.0.1:8080/update/%s/%s/%d", typeVar[5:], nameVar, valueVar)
+			postStr = fmt.Sprintf("http://127.0.0.1:8080/update/gauge/%s/%f", k, v)
 		}
-		//fmt.Println(postStr)
 		if r, err := http.Post(postStr, "text/plain", nil); err == nil {
 			r.Body.Close()
 		}
-		log.Printf("Transfer data %s", postStr)
+		//	log.Printf("Transfer data %s", postStr)
 	}
 	log.Printf("Sended data #%d with rnd %x", ld.PollCount, ld.RandomValue)
 }
