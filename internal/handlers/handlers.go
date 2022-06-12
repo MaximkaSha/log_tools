@@ -53,6 +53,7 @@ curl --header "Content-Type: application/json" --request POST --data "{\"id\":\"
 */
 
 func (obj Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data = new(models.Metrics)
 		decoder := json.NewDecoder(r.Body)
@@ -71,11 +72,14 @@ func (obj Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request)
 }
 
 func (obj Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) {
+	//	log.Println("json value")
+	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data = new(models.Metrics)
 		decoder := json.NewDecoder(r.Body)
 		err := decoder.Decode(&data)
 		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
 			http.Error(w, "Data error!", http.StatusNotImplemented)
 		}
 		if val, ok := obj.repo.GetByName(data.ID); ok {
