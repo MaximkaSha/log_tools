@@ -41,8 +41,10 @@ func (a Agent) SendLogsbyJSON(url string) error {
 		data = a.logDB[i]
 		jData, _ := json.Marshal(data)
 		//	log.Println(url)
-		resp, _ := http.Post(url, "application/json", bytes.NewBuffer(jData))
-		resp.Body.Close()
+		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
+		if err == nil {
+			resp.Body.Close()
+		}
 	}
 	log.Println("Sended logs")
 	//log.Println(a.logDB)
