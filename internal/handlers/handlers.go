@@ -83,6 +83,7 @@ func (obj Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			http.Error(w, "Data error!", http.StatusBadRequest)
+			return
 		}
 		if val, ok := obj.repo.GetByName(data.ID); ok {
 			if data.MType != "gauge" {
@@ -108,6 +109,7 @@ func (obj Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) 
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, "Not json", http.StatusBadRequest)
+		return
 
 	}
 
