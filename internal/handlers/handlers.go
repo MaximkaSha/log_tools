@@ -101,8 +101,10 @@ func (obj Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) 
 			w.WriteHeader(http.StatusOK)
 			w.Write(jData)
 		} else {
-			*data.Delta = 0
-			*data.Value = 0
+			var intVal = new(int64)
+			floatVal := 0.0
+			data.Delta = intVal
+			data.Value = &floatVal
 			w.Header().Set("Content-Type", "application/json")
 			jData, _ := json.Marshal(data)
 			w.WriteHeader(http.StatusNotFound)
