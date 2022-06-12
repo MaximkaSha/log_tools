@@ -121,6 +121,28 @@ func (a *Agent) CollectLogs() {
 	a.counter = a.counter + 1
 	tmpI := a.counter
 	a.AppendMetric(models.Metrics{ID: "PollCount", MType: "counter", Delta: &tmpI, Value: nil})
+	var tmpNumForcedGC = float64(rtm.NumForcedGC)
+	a.AppendMetric(models.Metrics{ID: "NumForcedGC", MType: "gauge", Delta: nil, Value: &tmpNumForcedGC})
+	var tmpNumGC = float64(rtm.NumGC)
+	a.AppendMetric(models.Metrics{ID: "NumForcedGC", MType: "gauge", Delta: nil, Value: &tmpNumGC})
+	var tmpStackInuse = float64(rtm.StackInuse)
+	a.AppendMetric(models.Metrics{ID: "NumForcedGC", MType: "gauge", Delta: nil, Value: &tmpStackInuse})
+	var tmpStackSys = float64(rtm.StackSys)
+	a.AppendMetric(models.Metrics{ID: "NumForcedGC", MType: "gauge", Delta: nil, Value: &tmpStackSys})
+	var tmpSys = float64(rtm.Sys)
+	a.AppendMetric(models.Metrics{ID: "NumForcedGC", MType: "gauge", Delta: nil, Value: &tmpSys})
+	var tmpTotalAlloc = float64(rtm.TotalAlloc)
+	a.AppendMetric(models.Metrics{ID: "NumForcedGC", MType: "gauge", Delta: nil, Value: &tmpTotalAlloc})
+
 	log.Println("Collected logs")
 	//	log.Println(a.logDB)
 }
+
+/*
+Mallocs
+
+
+
+
+TotalAlloc
+*/
