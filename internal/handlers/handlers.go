@@ -52,7 +52,7 @@ func (obj Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //sho
 curl --header "Content-Type: application/json" --request POST --data "{\"id\":\"PollCount\",\"type\":\"gauge\",\"value\":10.0230}" http://localhost:8080/update/
 */
 
-func (obj Handlers) HandlePostJsonUpdate(w http.ResponseWriter, r *http.Request) {
+func (obj Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data = new(models.Metrics)
 		decoder := json.NewDecoder(r.Body)
@@ -70,7 +70,7 @@ func (obj Handlers) HandlePostJsonUpdate(w http.ResponseWriter, r *http.Request)
 
 }
 
-func (obj Handlers) HandlePostJsonValue(w http.ResponseWriter, r *http.Request) {
+func (obj Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data = new(models.Metrics)
 		decoder := json.NewDecoder(r.Body)
@@ -93,7 +93,7 @@ func (obj Handlers) HandlePostJsonValue(w http.ResponseWriter, r *http.Request) 
 			w.Write(jData)
 		}
 	} else {
-		//fmt.Println(r.Header.Get("Content-Type"))
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, "Json Error", http.StatusNoContent)
 	}
 
