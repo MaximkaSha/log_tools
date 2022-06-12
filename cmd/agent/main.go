@@ -11,6 +11,8 @@ import (
 	"runtime"
 	"syscall"
 	"time"
+
+	"github.com/MaximkaSha/log_tools/internal/agent"
 )
 
 type gauge float64
@@ -101,15 +103,16 @@ func sendLogs(ld logData) {
 }
 
 func main() {
+	agentService := agent.NewAgent()
 	var pollInterval = 2 * time.Second
 	var reportInterval = 10 * time.Second
-	var logData = new(logData)
+	//var logData = new(logData)
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
-	var rtm runtime.MemStats
+	//	var rtm runtime.MemStats
 	log.Println("Logger start...")
 	tickerCollect := time.NewTicker(pollInterval)
 	tickerSend := time.NewTicker(reportInterval)
@@ -118,9 +121,10 @@ func main() {
 	for {
 		select {
 		case <-tickerCollect.C:
-			collectLogs(logData, rtm)
+			agentService.CollectLogs()
 		case <-tickerSend.C:
-			sendLogs(*logData)
+			agentService.SendLogsbyPost("http://localhost:8080/update/")
+			agentService.SendLogsbyJson("http://localhost:8080/update/")
 		case <-sigc:
 			log.Println("Got quit signal.")
 			return

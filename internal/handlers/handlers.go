@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
+	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/storage"
-	//"github.com/MaximkaSha/log_tools/internal/service"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -27,6 +29,7 @@ func (obj Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //sho
 	typeVal := chi.URLParam(r, "type")
 	nameVal := chi.URLParam(r, "name")
 	valueVal := chi.URLParam(r, "value")
+
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if r.Method != http.MethodPost {
 		http.Error(w, "Only POST requests are allowed!", http.StatusMethodNotAllowed) //legacy, before chi refactoring
@@ -45,13 +48,56 @@ func (obj Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //sho
 	w.WriteHeader(http.StatusOK)
 }
 
-/* Сервер должен возвращать текущее значение запрашиваемой
-метрики в текстовом виде по запросу
-GET http://<АДРЕС_СЕРВЕРА>/value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ> (со статусом http.StatusOK).
-При попытке запроса неизвестной серверу метрики сервер должен возвращать http.StatusNotFound.
-По запросу
- GET http://<АДРЕС_СЕРВЕРА>/
- с ервер должен отдавать HTML-страничку со списком имён и значений всех известных ему на текущий момент метрик. */
+/*
+curl --header "Content-Type: application/json" --request POST --data "{\"id\":\"PollCount\",\"type\":\"gauge\",\"value\":10.0230}" http://localhost:8080/update/
+*/
+
+func (obj Handlers) HandlePostJsonUpdate(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Content-Type") == "application/json" {
+		var data = new(models.Metrics)
+		decoder := json.NewDecoder(r.Body)
+		err := decoder.Decode(&data)
+		if err != nil {
+			http.Error(w, "Data error!", http.StatusNotImplemented)
+		}
+		obj.repo.InsertMetric(*data)
+		w.WriteHeader(http.StatusOK)
+		//	fmt.Println(obj.repo.GetByName(data.ID)) //check data
+	} else {
+		//fmt.Println(r.Header.Get("Content-Type"))
+		http.Error(w, "Json Error", http.StatusNoContent)
+	}
+
+}
+
+func (obj Handlers) HandlePostJsonValue(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Content-Type") == "application/json" {
+		var data = new(models.Metrics)
+		decoder := json.NewDecoder(r.Body)
+		err := decoder.Decode(&data)
+		if err != nil {
+			http.Error(w, "Data error!", http.StatusNotImplemented)
+		}
+		if val, ok := obj.repo.GetByName(data.ID); ok {
+			if data.MType == "counter" {
+				*data.Delta, _ = strconv.ParseInt(val, 10, 64)
+			} else if data.MType == "gauge" {
+				*data.Value, _ = strconv.ParseFloat(val, 64)
+			} else {
+				http.Error(w, "Type not found!", http.StatusNotImplemented)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			//fmt.Println(data)
+			jData, _ := json.Marshal(data)
+			w.Write(jData)
+		}
+	} else {
+		//fmt.Println(r.Header.Get("Content-Type"))
+		http.Error(w, "Json Error", http.StatusNoContent)
+	}
+
+}
 
 func (obj Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
 	repo := obj.repo.GetAll()
@@ -65,7 +111,6 @@ func (obj Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func (obj Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
-	//fmt.Println("get")
 	typeVal := chi.URLParam(r, "type")
 	nameVal := chi.URLParam(r, "name")
 

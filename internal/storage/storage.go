@@ -6,11 +6,30 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/utils"
 )
 
 type Repository struct {
 	db map[string]string
+}
+
+func (r Repository) InsertMetric(m models.Metrics) error {
+	if m.MType == "counter" {
+		if oldVal, ok := r.db[m.ID]; ok {
+			oldInt, _ := strconv.ParseInt(oldVal, 10, 64)
+			newInt := *m.Delta
+			r.db[m.ID] = fmt.Sprint(newInt + oldInt)
+			return nil
+		} else {
+			r.db[m.ID] = fmt.Sprint(*m.Delta)
+			return nil
+		}
+	}
+	if m.MType == "gauge" {
+		r.db[m.ID] = fmt.Sprint(*m.Value)
+	}
+	return nil
 }
 
 func (r Repository) InsertData(typeVar string, name string, value string) int {
