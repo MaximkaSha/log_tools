@@ -118,7 +118,7 @@ func (a *Agent) CollectLogs() {
 	a.AppendMetric(models.Metrics{ID: "RandomValue", MType: "gauge", Delta: nil, Value: &tmp})
 	a.counter = a.counter + 1
 	tmpI := a.counter
-	a.AppendMetric(models.Metrics{ID: "PollCounter", MType: "counter", Delta: &tmpI, Value: nil})
+	a.AppendMetric(models.Metrics{ID: "PollCount", MType: "counter", Delta: &tmpI, Value: nil})
 	log.Println("Collected logs")
 	//	log.Println(a.logDB)
 }
