@@ -87,9 +87,11 @@ func (obj Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) 
 		}
 		if val, ok := obj.repo.GetByName(data.ID); ok {
 			if data.MType != "gauge" {
-				*data.Delta, _ = strconv.ParseInt(val, 10, 64)
+				intVal, _ := strconv.ParseInt(val, 10, 64)
+				data.Delta = &intVal
 			} else if data.MType != "counter" {
-				*data.Value, _ = strconv.ParseFloat(val, 64)
+				floatVal, _ := strconv.ParseFloat(val, 64)
+				data.Value = &floatVal
 			} else {
 				http.Error(w, "Type not found!", http.StatusNotImplemented)
 				return
