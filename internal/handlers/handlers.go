@@ -59,14 +59,15 @@ func (obj Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request)
 		decoder := json.NewDecoder(r.Body)
 		err := decoder.Decode(&data)
 		if err != nil {
-			http.Error(w, "Data error!", http.StatusNotImplemented)
+			w.WriteHeader(http.StatusNotFound)
+			return
 		}
 		obj.repo.InsertMetric(*data)
 		w.WriteHeader(http.StatusOK)
 		//	fmt.Println(obj.repo.GetByName(data.ID)) //check data
 	} else {
 		//fmt.Println(r.Header.Get("Content-Type"))
-		http.Error(w, "Json Error", http.StatusNoContent)
+		w.WriteHeader(http.StatusNotFound)
 	}
 
 }
@@ -92,15 +93,18 @@ func (obj Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) 
 			}
 			w.Header().Set("Content-Type", "application/json")
 			jData, _ := json.Marshal(data)
+			w.WriteHeader(http.StatusOK)
 			w.Write(jData)
 		} else {
 			*data.Delta = 0
 			*data.Value = 0
 			w.Header().Set("Content-Type", "application/json")
 			jData, _ := json.Marshal(data)
+			w.WriteHeader(http.StatusNotFound)
 			w.Write(jData)
 		}
 	} else {
+		w.WriteHeader(http.StatusNotAcceptable)
 		w.Header().Set("Content-Type", "application/json")
 
 	}
