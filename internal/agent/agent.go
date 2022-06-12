@@ -124,15 +124,17 @@ func (a *Agent) CollectLogs() {
 	var tmpNumForcedGC = float64(rtm.NumForcedGC)
 	a.AppendMetric(models.Metrics{ID: "NumForcedGC", MType: "gauge", Delta: nil, Value: &tmpNumForcedGC})
 	var tmpNumGC = float64(rtm.NumGC)
-	a.AppendMetric(models.Metrics{ID: "NumForcedGC", MType: "gauge", Delta: nil, Value: &tmpNumGC})
+	a.AppendMetric(models.Metrics{ID: "NumGC", MType: "gauge", Delta: nil, Value: &tmpNumGC})
 	var tmpStackInuse = float64(rtm.StackInuse)
-	a.AppendMetric(models.Metrics{ID: "NumForcedGC", MType: "gauge", Delta: nil, Value: &tmpStackInuse})
+	a.AppendMetric(models.Metrics{ID: "StackInuse", MType: "gauge", Delta: nil, Value: &tmpStackInuse})
 	var tmpStackSys = float64(rtm.StackSys)
-	a.AppendMetric(models.Metrics{ID: "NumForcedGC", MType: "gauge", Delta: nil, Value: &tmpStackSys})
+	a.AppendMetric(models.Metrics{ID: "StackSys", MType: "gauge", Delta: nil, Value: &tmpStackSys})
 	var tmpSys = float64(rtm.Sys)
-	a.AppendMetric(models.Metrics{ID: "NumForcedGC", MType: "gauge", Delta: nil, Value: &tmpSys})
+	a.AppendMetric(models.Metrics{ID: "Sys", MType: "gauge", Delta: nil, Value: &tmpSys})
 	var tmpTotalAlloc = float64(rtm.TotalAlloc)
-	a.AppendMetric(models.Metrics{ID: "NumForcedGC", MType: "gauge", Delta: nil, Value: &tmpTotalAlloc})
+	a.AppendMetric(models.Metrics{ID: "TotalAlloc", MType: "gauge", Delta: nil, Value: &tmpTotalAlloc})
+	var tmpMallocs = float64(rtm.Mallocs)
+	a.AppendMetric(models.Metrics{ID: "Mallocs", MType: "gauge", Delta: nil, Value: &tmpMallocs})
 
 	log.Println("Collected logs")
 	//	log.Println(a.logDB)
@@ -140,9 +142,10 @@ func (a *Agent) CollectLogs() {
 
 /*
 Mallocs
-
-
-
-
+NumForcedGC
+NumGC
+StackInuse
+StackSys
+Sys
 TotalAlloc
 */
