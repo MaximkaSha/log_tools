@@ -64,7 +64,9 @@ func (obj Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request)
 		}
 		obj.repo.InsertMetric(*data)
 		w.WriteHeader(http.StatusOK)
-		//	fmt.Println(obj.repo.GetByName(data.ID)) //check data
+		//	obj.repo.GetByName(data)
+		jData, _ := json.Marshal(data)
+		w.Write(jData)
 	} else {
 		//fmt.Println(r.Header.Get("Content-Type"))
 		w.WriteHeader(http.StatusNotFound)
