@@ -72,7 +72,6 @@ func (obj Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request)
 }
 
 func (obj Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) {
-	//	log.Println("json value")
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data = new(models.Metrics)
@@ -83,16 +82,15 @@ func (obj Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) 
 			http.Error(w, "Data error!", http.StatusNotImplemented)
 		}
 		if val, ok := obj.repo.GetByName(data.ID); ok {
-			if data.MType == "counter" {
+			if data.MType != "gauge" {
 				*data.Delta, _ = strconv.ParseInt(val, 10, 64)
-			} else if data.MType == "gauge" {
+			} else if data.MType != "counter" {
 				*data.Value, _ = strconv.ParseFloat(val, 64)
 			} else {
 				http.Error(w, "Type not found!", http.StatusNotImplemented)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			//fmt.Println(data)
 			jData, _ := json.Marshal(data)
 			w.Write(jData)
 		}
