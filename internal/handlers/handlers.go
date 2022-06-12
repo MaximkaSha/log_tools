@@ -93,10 +93,16 @@ func (obj Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) 
 			w.Header().Set("Content-Type", "application/json")
 			jData, _ := json.Marshal(data)
 			w.Write(jData)
+		} else {
+			*data.Delta = 0
+			*data.Value = 0
+			w.Header().Set("Content-Type", "application/json")
+			jData, _ := json.Marshal(data)
+			w.Write(jData)
 		}
 	} else {
 		w.Header().Set("Content-Type", "application/json")
-		http.Error(w, "Json Error", http.StatusNoContent)
+
 	}
 
 }

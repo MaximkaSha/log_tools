@@ -104,8 +104,8 @@ func sendLogs(ld logData) {
 
 func main() {
 	agentService := agent.NewAgent()
-	var pollInterval = 1 * time.Second
-	var reportInterval = 2 * time.Second
+	var pollInterval = 2 * time.Second
+	var reportInterval = 10 * time.Second
 	//var logData = new(logData)
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
