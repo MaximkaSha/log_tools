@@ -1,9 +1,13 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/MaximkaSha/log_tools/internal/handlers"
@@ -14,14 +18,15 @@ import (
 
 type Config struct {
 	Server        string        `env:"ADDRESS" envDefault:"localhost:8080"`
-	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`                    // 0 for sync
-	StoreFile     string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"` // empty for no store
-	RestoreFlag   bool          `env:"RESTORE" envDefault:"true"`                           //restore from file
+	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`  // 0 for sync
+	StoreFile     string        `env:"STORE_FILE" envDefault:"test.json"` // empty for no store test.json /tmp/devops-metrics-db.json
+	RestoreFlag   bool          `env:"RESTORE" envDefault:"true"`         //restore from file
 }
 
 type Server struct {
 	cfg   Config
 	handl handlers.Handlers
+	srv   http.Server
 }
 
 func NewServer() Server {
@@ -35,6 +40,7 @@ func NewServer() Server {
 	return Server{
 		cfg:   cfg,
 		handl: handl,
+		srv:   http.Server{},
 	}
 }
 
@@ -56,28 +62,33 @@ func (s *Server) StartServe() {
 	mux.Post("/update/", s.handl.HandlePostJSONUpdate)
 	mux.Post("/value/", s.handl.HandlePostJSONValue)
 
+	s.srv.Addr = s.cfg.Server
+	s.srv.Handler = mux
 	fmt.Println("Server is listening...")
-	log.Fatal(http.ListenAndServe(s.cfg.Server, mux))
+	log.Fatal(s.srv.ListenAndServe())
 	s.saveData(s.cfg.StoreFile)
 }
 
 func (s *Server) routins(cfg *Config) {
 	log.Println("start routiner.")
-	//sigc := make(chan os.Signal, 1)
-	//signal.Notify(sigc,
-	//	syscall.SIGINT,
-	//	syscall.SIGTERM,
-	//	syscall.SIGQUIT)
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
 	tickerStore := time.NewTicker(cfg.StoreInterval)
 	defer tickerStore.Stop()
 	for {
 		select {
 		case <-tickerStore.C:
 			s.saveData(cfg.StoreFile)
-			//	case <-sigc:
-			//		s.saveData(cfg.StoreFile)
-			//		log.Println("Exiting")
-			//		return
+		case <-sigc:
+
+			s.saveData(cfg.StoreFile)
+			if err := s.srv.Shutdown(context.Background()); err != nil {
+				log.Printf("Gracefully Shutdown: %v", err)
+			}
+			return
 		}
 	}
 

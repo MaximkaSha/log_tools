@@ -26,10 +26,8 @@ func (r *Repository) InsertMetric(m models.Metrics) error {
 			oldInt, _ := strconv.ParseInt(oldVal, 10, 64)
 			newInt := *m.Delta
 			r.db[m.ID] = fmt.Sprint(newInt + oldInt)
-			return nil
 		} else {
-			r.db[m.ID] = fmt.Sprint(*m.Delta)
-			return nil
+			r.db[m.ID] = fmt.Sprint(m.Delta)
 		}
 	}
 	if m.MType == "gauge" {
