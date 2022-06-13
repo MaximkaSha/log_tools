@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	//"json/encoding"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/MaximkaSha/log_tools/internal/models"
@@ -69,6 +68,10 @@ func (r *Repository) SaveData(file string) {
 }
 
 func (r *Repository) Restore(file string) {
+	if _, err := os.Stat(file); err != nil {
+		log.Println("Restore file not found")
+		return
+	}
 	var data []models.Metrics
 	var jData, err = ioutil.ReadFile(file)
 	if err != nil {
