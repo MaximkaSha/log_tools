@@ -61,7 +61,7 @@ func (obj *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request
 			return
 		}
 		obj.Repo.InsertMetric(*data)
-		obj.Repo.SaveData(obj.SyncFile)
+		//obj.Repo.SaveData(obj.SyncFile)
 		w.WriteHeader(http.StatusOK)
 		jData, _ := json.Marshal(data)
 		w.Write(jData)

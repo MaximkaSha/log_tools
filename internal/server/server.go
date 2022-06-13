@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/MaximkaSha/log_tools/internal/handlers"
@@ -17,9 +14,9 @@ import (
 
 type Config struct {
 	Server        string        `env:"ADDRESS" envDefault:"localhost:8080"`
-	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`                    // 0 for sync
-	StoreFile     string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"` // empty for no store
-	RestoreFlag   bool          `env:"RESTORE" envDefault:"true"`                           //restore from file
+	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"` // 0 for sync
+	StoreFile     string        `env:"STORE_FILE" envDefault:""`         // empty for no store
+	RestoreFlag   bool          `env:"RESTORE" envDefault:"false"`       //restore from file
 }
 
 type Server struct {
@@ -61,23 +58,26 @@ func (s *Server) StartServe() {
 
 	fmt.Println("Server is listening...")
 	log.Fatal(http.ListenAndServe(s.cfg.Server, mux))
+	s.saveData(s.cfg.StoreFile)
 }
 
 func (s *Server) routins(cfg *Config) {
 	log.Println("start routiner.")
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT)
+	//sigc := make(chan os.Signal, 1)
+	//signal.Notify(sigc,
+	//	syscall.SIGINT,
+	//	syscall.SIGTERM,
+	//	syscall.SIGQUIT)
 	tickerStore := time.NewTicker(cfg.StoreInterval)
 	defer tickerStore.Stop()
 	for {
 		select {
 		case <-tickerStore.C:
 			s.saveData(cfg.StoreFile)
-		case <-sigc:
-			s.saveData(cfg.StoreFile)
+			//	case <-sigc:
+			//		s.saveData(cfg.StoreFile)
+			//		log.Println("Exiting")
+			//		return
 		}
 	}
 
