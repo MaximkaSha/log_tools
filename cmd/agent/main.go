@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/MaximkaSha/log_tools/internal/agent"
+	"github.com/caarlos0/env/v6"
 )
 
 type gauge float64
@@ -103,9 +104,15 @@ func sendLogs(ld logData) {
 }
 
 func main() {
+	var cfg agent.Config
+	err := env.Parse(&cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	agentService := agent.NewAgent()
-	var pollInterval = 2 * time.Second
-	var reportInterval = 10 * time.Second
+	var pollInterval = cfg.PollInterval
+	var reportInterval = cfg.ReportInterval
 	//var logData = new(logData)
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
@@ -124,7 +131,7 @@ func main() {
 			agentService.CollectLogs()
 		case <-tickerSend.C:
 			//agentService.SendLogsbyPost("http://localhost:8080/update/")
-			agentService.SendLogsbyJSON("http://localhost:8080/update/")
+			agentService.SendLogsbyJSON("http://" + cfg.Server + "/update/")
 		case <-sigc:
 			log.Println("Got quit signal.")
 			return

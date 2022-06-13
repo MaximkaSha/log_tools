@@ -8,9 +8,17 @@ import (
 	"math/rand"
 	"net/http"
 	"runtime"
+	"time"
 
 	"github.com/MaximkaSha/log_tools/internal/models"
+	//	"github.com/caarlos0/env/v6"
 )
+
+type Config struct {
+	Server         string        `env:"ADDRESS" envDefault:"localhost:8080"`
+	ReportInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
+	PollInterval   time.Duration `env:"POLL_INTERVAL,required" envDefault:"2s"`
+}
 
 type Agent struct {
 	logDB   []models.Metrics
