@@ -38,7 +38,7 @@ func main() {
 		case <-tickerCollect.C:
 			agentService.CollectLogs()
 		case <-tickerSend.C:
-			//agentService.SendLogsbyPost("http://localhost:8080/update/")
+			agentService.SendLogsbyPost("http://localhost:8080/update/")
 			agentService.SendLogsbyJSON("http://" + cfg.Server + "/update/")
 		case <-sigc:
 			log.Println("Got quit signal.")

@@ -53,7 +53,7 @@ func (a Agent) SendLogsbyJSON(url string) error {
 			resp.Body.Close()
 		}
 	}
-	log.Println("Sended logs")
+	log.Println("Sended logs by POST JSON")
 	//log.Println(a.logDB)
 	return nil
 }
@@ -75,7 +75,7 @@ func (a *Agent) SendLogsbyPost(sData string) error {
 			r.Body.Close()
 		}
 	}
-	//log.Println("Sended logs")
+	log.Println("Sended logs by POST param")
 	//log.Println(a.logDB)
 	return nil
 }

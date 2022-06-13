@@ -51,7 +51,9 @@ func (r *Repository) AppendMetric(m models.Metrics) {
 }
 
 func (r *Repository) SaveData(file string) {
-
+	if file == "" {
+		return
+	}
 	jData, err := json.Marshal(r.JSONDB)
 	if err != nil {
 		log.Panic(err)
