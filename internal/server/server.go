@@ -17,7 +17,7 @@ import (
 
 type Config struct {
 	Server        string        `env:"ADDRESS" envDefault:"localhost:8080"`
-	StoreInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"2s"`                     // 0 for sync
+	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`                    // 0 for sync
 	StoreFile     string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"` // empty for no store
 	RestoreFlag   bool          `env:"RESTORE" envDefault:"true"`                           //restore from file
 }
@@ -45,7 +45,7 @@ func (s *Server) StartServe() {
 	if s.cfg.StoreFile != "" || s.cfg.StoreInterval > 0 {
 		go s.routins(&s.cfg)
 	}
-	if s.cfg.RestoreFlag == true {
+	if s.cfg.RestoreFlag {
 		s.Restore(s.cfg.StoreFile)
 	}
 	if s.cfg.StoreInterval == 0 {
