@@ -18,9 +18,9 @@ import (
 
 type Config struct {
 	Server        string        `env:"ADDRESS" envDefault:"localhost:8080"`
-	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`  // 0 for sync
-	StoreFile     string        `env:"STORE_FILE" envDefault:"test.json"` // empty for no store test.json /tmp/devops-metrics-db.json
-	RestoreFlag   bool          `env:"RESTORE" envDefault:"true"`         //restore from file
+	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`                    // 0 for sync
+	StoreFile     string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"` // empty for no store test.json /tmp/devops-metrics-db.json
+	RestoreFlag   bool          `env:"RESTORE" envDefault:"true"`                           //restore from file
 }
 
 type Server struct {

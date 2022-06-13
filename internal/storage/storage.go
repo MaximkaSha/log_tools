@@ -26,6 +26,9 @@ func (r *Repository) InsertMetric(m models.Metrics) error {
 			oldInt, _ := strconv.ParseInt(oldVal, 10, 64)
 			newInt := *m.Delta
 			r.db[m.ID] = fmt.Sprint(newInt + oldInt)
+			tmpVar := newInt + oldInt
+			m.Delta = &tmpVar
+			log.Println(m)
 		} else {
 			r.db[m.ID] = fmt.Sprint(m.Delta)
 		}
@@ -38,8 +41,14 @@ func (r *Repository) InsertMetric(m models.Metrics) error {
 }
 
 func (r *Repository) AppendMetric(m models.Metrics) {
+
 	for i := range r.JSONDB {
-		if r.JSONDB[i].ID == m.ID {
+		if r.JSONDB[i].ID == m.ID && m.MType == "counter" {
+			newDelta := *(r.JSONDB[i].Delta) + *(m.Delta)
+			r.JSONDB[i].Delta = &newDelta
+			r.JSONDB[i].Value = m.Value
+			return
+		} else if r.JSONDB[i].ID == m.ID && m.MType == "gauge" {
 			r.JSONDB[i].Delta = m.Delta
 			r.JSONDB[i].Value = m.Value
 			return

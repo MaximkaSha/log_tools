@@ -2,13 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
-
-	//"log"
 	"net/http"
 	"strconv"
 
 	"github.com/MaximkaSha/log_tools/internal/models"
-	//"github.com/MaximkaSha/log_tools/internal/server"
 	"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/go-chi/chi/v5"
 )
