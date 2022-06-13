@@ -82,6 +82,16 @@ func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request)
 			http.Error(w, "Data error!", http.StatusBadRequest)
 			return
 		}
+		for i := range obj.Repo.JSONDB {
+			if obj.Repo.JSONDB[i].ID == data.ID {
+				data.Value = obj.Repo.JSONDB[i].Value
+				data.Delta = obj.Repo.JSONDB[i].Delta
+				jData, _ := json.Marshal(data)
+				w.WriteHeader(http.StatusOK)
+				w.Write(jData)
+				return
+			}
+		}
 		if val, ok := obj.Repo.GetByName(data.ID); ok {
 			if data.MType != "gauge" {
 				intVal, _ := strconv.ParseInt(val, 10, 64)

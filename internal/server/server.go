@@ -90,5 +90,5 @@ func (s *Server) saveData(file string) {
 
 func (s *Server) Restore(file string) {
 	s.handl.Repo.Restore(file)
-	log.Println("Data restored")
+	//	log.Println("Data restored")
 }
