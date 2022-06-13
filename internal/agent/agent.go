@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/MaximkaSha/log_tools/internal/models"
-	//	"github.com/caarlos0/env/v6"
 )
 
 type Config struct {

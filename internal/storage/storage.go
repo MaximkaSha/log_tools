@@ -1,8 +1,13 @@
 package storage
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+
+	//"json/encoding"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -11,10 +16,11 @@ import (
 )
 
 type Repository struct {
-	db map[string]string
+	db     map[string]string
+	JSONDB []models.Metrics
 }
 
-func (r Repository) InsertMetric(m models.Metrics) error {
+func (r *Repository) InsertMetric(m models.Metrics) error {
 	if m.MType == "counter" {
 		if oldVal, ok := r.db[m.ID]; ok {
 			oldInt, _ := strconv.ParseInt(oldVal, 10, 64)
@@ -29,7 +35,43 @@ func (r Repository) InsertMetric(m models.Metrics) error {
 	if m.MType == "gauge" {
 		r.db[m.ID] = fmt.Sprint(*m.Value)
 	}
+	r.AppendMetric(m)
 	return nil
+}
+
+func (r *Repository) AppendMetric(m models.Metrics) {
+	for i := range r.JSONDB {
+		if r.JSONDB[i].ID == m.ID {
+			r.JSONDB[i].Delta = m.Delta
+			r.JSONDB[i].Value = m.Value
+			return
+		}
+	}
+	r.JSONDB = append(r.JSONDB, m)
+}
+
+func (r *Repository) SaveData(file string) {
+
+	jData, err := json.Marshal(r.JSONDB)
+	if err != nil {
+		log.Panic(err)
+	}
+	_ = ioutil.WriteFile(file, jData, 0644)
+}
+
+func (r *Repository) Restore(file string) {
+	var data []models.Metrics
+	var jData, err = ioutil.ReadFile(file)
+	if err != nil {
+		log.Panic(err)
+	}
+	err = json.Unmarshal(jData, &data)
+	if err != nil {
+		log.Panic(err)
+	}
+	r.JSONDB = data
+	log.Print("Data restored from file")
+
 }
 
 func (r Repository) InsertData(typeVar string, name string, value string) int {

@@ -134,12 +134,12 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 				mux.Post("/update/{type}/{name}/{value}", handl.HandleUpdate)
 			}
 			if tt.method == "GET" {
-				handl.repo.InsertData("gauge", "TestCount", "100.00")
+				handl.Repo.InsertData("gauge", "TestCount", "100.00")
 				mux.Get("/value/{type}/{name}", handl.HandleGetUpdate)
 			}
 			if tt.method == "home" {
 
-				handl.repo.InsertData("gauge", "TestCount", "100.00")
+				handl.Repo.InsertData("gauge", "TestCount", "100.00")
 				mux.Get("/", handl.HandleGetHome)
 			}
 			// запускаем сервер

@@ -165,7 +165,8 @@ func TestRepository_GetAll(t *testing.T) {
 			name: "positive",
 			r: Repository{map[string]string{
 				"Test": "100",
-			}},
+			},
+				NewRepo().JSONDB},
 			want: map[string]string{
 				"Test": "100",
 			},
