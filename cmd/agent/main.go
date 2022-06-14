@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -27,24 +26,30 @@ func init() {
 
 func main() {
 	var cfg agent.Config
-	err := env.Parse(&cfg)
+	var envCfg = make(map[string]bool)
+	opts := env.Options{
+		OnSet: func(tag string, value interface{}, isDefault bool) {
+			envCfg[tag] = isDefault
+		},
+	}
+	err := env.Parse(&cfg, opts)
+
 	if err != nil {
 		log.Fatal(err)
 	}
 	flag.Parse()
-	if _, err := os.LookupEnv("ADDRESS"); err {
+	var a = flag.Lookup("a")
+	if envCfg["ADDRESS"] && a != nil {
 		cfg.Server = *srvAdressArg
 	}
-	if _, err := os.LookupEnv("REPORT_INTERVAL"); err {
-		cfg.ReportInterval = time.Duration(*reportIntervalArg)
+	a = flag.Lookup("r")
+	if envCfg["REPORT_INTERVAL"] && a != nil {
+		cfg.ReportInterval = time.Duration(int(time.Second) * (*reportIntervalArg))
 	}
-	if _, err := os.LookupEnv("POLL_INTERVAL"); err {
-		cfg.PollInterval = time.Duration(*pollIntervalArg)
+	a = flag.Lookup("p")
+	if envCfg["POLL_INTERVAL"] && a != nil {
+		cfg.PollInterval = time.Duration(int(time.Second) * (*pollIntervalArg))
 	}
-	fmt.Println(cfg.PollInterval)
-	fmt.Println(cfg.ReportInterval)
-	fmt.Println(cfg.Server)
-
 	agentService := agent.NewAgent()
 	var pollInterval = cfg.PollInterval
 	var reportInterval = cfg.ReportInterval

@@ -13,7 +13,7 @@ import (
 
 	"github.com/MaximkaSha/log_tools/internal/handlers"
 	"github.com/MaximkaSha/log_tools/internal/storage"
-	"github.com/caarlos0/env"
+	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -32,22 +32,32 @@ type Server struct {
 
 func NewServer() Server {
 	var cfg Config
-	err := env.Parse(&cfg)
+	var envCfg = make(map[string]bool)
+	opts := env.Options{
+		OnSet: func(tag string, value interface{}, isDefault bool) {
+			envCfg[tag] = isDefault
+		},
+	}
+	err := env.Parse(&cfg, opts)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	flag.Parse()
-	if _, err := os.LookupEnv("ADDRESS"); err {
+	var a = flag.Lookup("a")
+	if envCfg["ADDRESS"] && a != nil {
 		cfg.Server = *srvAdressArg
 	}
-	if _, err := os.LookupEnv("STORE_INTERVAL"); err {
-		cfg.StoreInterval = time.Duration(*storeIntervalArg)
+	a = flag.Lookup("i")
+	if envCfg["STORE_INTERVAL"] && a != nil {
+		cfg.StoreInterval = time.Duration(int(time.Second) * (*storeIntervalArg))
 	}
-	if _, err := os.LookupEnv("POLL_INTERVAL"); err {
+	a = flag.Lookup("f")
+	if envCfg["STORE_FILE"] && a != nil {
 		cfg.StoreFile = *storeFileArg
 	}
-	if _, err := os.LookupEnv("RESTORE"); err {
+	a = flag.Lookup("r")
+	if envCfg["RESTORE"] && a != nil {
 		cfg.RestoreFlag = *restoreFlagArg
 	}
 
