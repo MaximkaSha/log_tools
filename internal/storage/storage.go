@@ -79,10 +79,11 @@ func (r *Repository) Restore(file string) {
 	}
 	err = json.Unmarshal(jData, &data)
 	if err != nil {
-		log.Panic(err)
+		log.Println("Data file corrupted")
+	} else {
+		r.JSONDB = data
+		log.Print("Data restored from file")
 	}
-	r.JSONDB = data
-	log.Print("Data restored from file")
 
 }
 
