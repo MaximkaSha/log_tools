@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -35,6 +36,21 @@ func NewServer() Server {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	flag.Parse()
+	if _, err := os.LookupEnv("ADDRESS"); err {
+		cfg.Server = *srvAdressArg
+	}
+	if _, err := os.LookupEnv("STORE_INTERVAL"); err {
+		cfg.StoreInterval = time.Duration(*storeIntervalArg)
+	}
+	if _, err := os.LookupEnv("POLL_INTERVAL"); err {
+		cfg.StoreFile = *storeFileArg
+	}
+	if _, err := os.LookupEnv("RESTORE"); err {
+		cfg.RestoreFlag = *restoreFlagArg
+	}
+
 	repo := storage.NewRepo()
 	handl := handlers.NewHandlers(repo)
 	return Server{
@@ -42,6 +58,20 @@ func NewServer() Server {
 		handl: handl,
 		srv:   http.Server{},
 	}
+}
+
+var (
+	srvAdressArg     *string
+	storeIntervalArg *int
+	storeFileArg     *string
+	restoreFlagArg   *bool
+)
+
+func init() {
+	srvAdressArg = flag.String("a", "localhost:8080", "host:port (default localhost:8080)")
+	storeIntervalArg = flag.Int("i", 300, "store interval in seconds (default 300s)")
+	storeFileArg = flag.String("f", "/tmp/devops-metrics-db.json", "path to file for store (default '/tmp/devops-metrics-db.json')")
+	restoreFlagArg = flag.Bool("r", true, "if is true restore data from env:STORE_FILE (default true)")
 }
 
 func (s *Server) StartServe() {
