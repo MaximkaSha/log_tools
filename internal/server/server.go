@@ -50,7 +50,7 @@ func NewServer() Server {
 	}
 	a = flag.Lookup("i")
 	if envCfg["STORE_INTERVAL"] && a != nil {
-		cfg.StoreInterval = time.Duration(int(time.Second) * (*storeIntervalArg))
+		cfg.StoreInterval = *storeIntervalArg
 	}
 	a = flag.Lookup("f")
 	if envCfg["STORE_FILE"] && a != nil {
@@ -72,14 +72,14 @@ func NewServer() Server {
 
 var (
 	srvAdressArg     *string
-	storeIntervalArg *int
+	storeIntervalArg *time.Duration
 	storeFileArg     *string
 	restoreFlagArg   *bool
 )
 
 func init() {
 	srvAdressArg = flag.String("a", "localhost:8080", "host:port (default localhost:8080)")
-	storeIntervalArg = flag.Int("i", 300, "store interval in seconds (default 300s)")
+	storeIntervalArg = flag.Duration("i", time.Duration(300), "store interval in seconds (default 300s)")
 	storeFileArg = flag.String("f", "/tmp/devops-metrics-db.json", "path to file for store (default '/tmp/devops-metrics-db.json')")
 	restoreFlagArg = flag.Bool("r", true, "if is true restore data from env:STORE_FILE (default true)")
 }
