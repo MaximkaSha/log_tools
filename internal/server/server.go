@@ -81,11 +81,11 @@ func init() {
 	srvAdressArg = flag.String("a", "localhost:8080", "host:port (default localhost:8080)")
 	storeIntervalArg = flag.Duration("i", time.Duration(300), "store interval in seconds (default 300s)")
 	storeFileArg = flag.String("f", "/tmp/devops-metrics-db.json", "path to file for store (default '/tmp/devops-metrics-db.json')")
-	restoreFlagArg = flag.Bool("r", true, "if is true restore data from env:STORE_FILE (default true)")
+	restoreFlagArg = flag.Bool("r", true, "if is true restore data from env:RESTORE (default true)")
 }
 
 func (s *Server) StartServe() {
-	if s.cfg.StoreFile != "" || s.cfg.StoreInterval > 0 {
+	if s.cfg.StoreFile != "" || s.cfg.StoreInterval > time.Duration(0) {
 		go s.routins(&s.cfg)
 	}
 	if s.cfg.RestoreFlag {
