@@ -14,14 +14,14 @@ import (
 
 var (
 	srvAdressArg      *string
-	reportIntervalArg *int
-	pollIntervalArg   *int
+	reportIntervalArg *time.Duration
+	pollIntervalArg   *time.Duration
 )
 
 func init() {
 	srvAdressArg = flag.String("a", "localhost:8080", "host:port (default localhost:8080)")
-	reportIntervalArg = flag.Int("r", 10, "report to server interval in seconds (default 10s)")
-	pollIntervalArg = flag.Int("p", 2, "poll interval in seconds (default 2s)")
+	reportIntervalArg = flag.Duration("r", time.Duration(10*time.Second), "report to server interval in seconds (default 10s)")
+	pollIntervalArg = flag.Duration("p", time.Duration(2*time.Second), "poll interval in seconds (default 2s)")
 }
 
 func main() {
@@ -44,11 +44,11 @@ func main() {
 	}
 	a = flag.Lookup("r")
 	if envCfg["REPORT_INTERVAL"] && a != nil {
-		cfg.ReportInterval = time.Duration(int(time.Second) * (*reportIntervalArg))
+		cfg.ReportInterval = time.Duration(*reportIntervalArg)
 	}
 	a = flag.Lookup("p")
 	if envCfg["POLL_INTERVAL"] && a != nil {
-		cfg.PollInterval = time.Duration(int(time.Second) * (*pollIntervalArg))
+		cfg.PollInterval = time.Duration(*pollIntervalArg)
 	}
 	agentService := agent.NewAgent()
 	var pollInterval = cfg.PollInterval

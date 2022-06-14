@@ -50,6 +50,7 @@ func NewServer() Server {
 	}
 	a = flag.Lookup("i")
 	if envCfg["STORE_INTERVAL"] && a != nil {
+		log.Printf(storeIntervalArg.String())
 		cfg.StoreInterval = *storeIntervalArg
 	}
 	a = flag.Lookup("f")
@@ -79,13 +80,13 @@ var (
 
 func init() {
 	srvAdressArg = flag.String("a", "localhost:8080", "host:port (default localhost:8080)")
-	storeIntervalArg = flag.Duration("i", time.Duration(300), "store interval in seconds (default 300s)")
+	storeIntervalArg = flag.Duration("i", time.Duration(300*time.Second), "store interval in seconds (default 300s)")
 	storeFileArg = flag.String("f", "/tmp/devops-metrics-db.json", "path to file for store (default '/tmp/devops-metrics-db.json')")
 	restoreFlagArg = flag.Bool("r", true, "if is true restore data from env:RESTORE (default true)")
 }
 
 func (s *Server) StartServe() {
-	if s.cfg.StoreFile != "" || s.cfg.StoreInterval > time.Duration(0) {
+	if s.cfg.StoreFile != "" || s.cfg.StoreInterval.Nanoseconds() > 0 {
 		go s.routins(&s.cfg)
 	}
 	if s.cfg.RestoreFlag {
@@ -105,8 +106,10 @@ func (s *Server) StartServe() {
 	s.srv.Addr = s.cfg.Server
 	s.srv.Handler = mux
 	fmt.Println("Server is listening...")
-	log.Fatal(s.srv.ListenAndServe())
-	s.saveData(s.cfg.StoreFile)
+	if err := s.srv.ListenAndServe(); err != nil {
+		log.Printf("Server shutdown: %s", err.Error())
+		s.saveData(s.cfg.StoreFile)
+	}
 }
 
 func (s *Server) routins(cfg *Config) {
@@ -123,7 +126,6 @@ func (s *Server) routins(cfg *Config) {
 		case <-tickerStore.C:
 			s.saveData(cfg.StoreFile)
 		case <-sigc:
-
 			s.saveData(cfg.StoreFile)
 			if err := s.srv.Shutdown(context.Background()); err != nil {
 				log.Printf("Gracefully Shutdown: %v", err)
