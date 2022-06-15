@@ -52,7 +52,7 @@ func NewServer() Server {
 	}
 	a = flag.Lookup("i")
 	if envCfg["STORE_INTERVAL"] && a != nil {
-		log.Printf(storeIntervalArg.String())
+		//	log.Printf(storeIntervalArg.String())
 		cfg.StoreInterval = *storeIntervalArg
 	}
 	a = flag.Lookup("f")
