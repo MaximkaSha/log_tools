@@ -1,6 +1,7 @@
 package server
 
 import (
+	"compress/flate"
 	"context"
 	"flag"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"github.com/MaximkaSha/log_tools/internal/handlers"
 	"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/caarlos0/env/v6"
+	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -97,6 +99,8 @@ func (s *Server) StartServe() {
 	}
 
 	mux := chi.NewRouter()
+	compressor := middleware.NewCompressor(flate.DefaultCompression)
+	mux.Use(compressor.Handler)
 	mux.Post("/update/{type}/{name}/{value}", s.handl.HandleUpdate)
 	mux.Get("/value/{type}/{name}", s.handl.HandleGetUpdate)
 	mux.Get("/", s.handl.HandleGetHome)
