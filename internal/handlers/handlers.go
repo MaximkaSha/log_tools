@@ -30,7 +30,7 @@ func (obj *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //sh
 	typeVal := chi.URLParam(r, "type")
 	nameVal := chi.URLParam(r, "name")
 	valueVal := chi.URLParam(r, "value")
-	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if (typeVal != "gauge") && (typeVal != "counter") {
 		http.Error(w, "Type not found!", http.StatusNotImplemented)
 		return
@@ -124,7 +124,7 @@ func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request)
 }
 
 func (obj *Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Type", "text/html")
 	repo := obj.Repo.JSONDB
 	allData, _ := json.MarshalIndent(repo, "", "    ")
 	w.WriteHeader(http.StatusOK)
