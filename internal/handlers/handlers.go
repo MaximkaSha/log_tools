@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/storage"
@@ -122,7 +123,7 @@ func (obj *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
 			tmp := fmt.Sprintf("%d", *valueVar.Delta)
 			w.Write([]byte(tmp))
 		} else {
-			tmp := fmt.Sprintf("%.f", *valueVar.Value)
+			tmp := strconv.FormatFloat(*valueVar.Value, 'f', -1, 64)
 			w.Write([]byte(tmp))
 		}
 

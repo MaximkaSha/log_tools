@@ -31,8 +31,6 @@ func (r *Repository) AppendMetric(m models.Metrics) {
 			if m.Delta != nil {
 				newDelta := *(r.JSONDB[i].Delta) + *(m.Delta)
 				r.JSONDB[i].Delta = &newDelta
-			} else {
-				r.JSONDB[i].Delta = new(int64)
 			}
 			r.JSONDB[i].Value = m.Value
 			return
