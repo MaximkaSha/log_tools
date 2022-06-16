@@ -122,7 +122,7 @@ func (obj *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
 			tmp := fmt.Sprintf("%d", *valueVar.Delta)
 			w.Write([]byte(tmp))
 		} else {
-			tmp := fmt.Sprintf("%f", *valueVar.Value)
+			tmp := fmt.Sprintf("%.f", *valueVar.Value)
 			w.Write([]byte(tmp))
 		}
 

@@ -300,6 +300,7 @@ func TestHandlers_HandlePostJSONUpdate(t *testing.T) {
 			srv.ServeHTTP(w, request)
 			resp := w.Result()
 			respBody, err := ioutil.ReadAll(resp.Body)
+			defer resp.Body.Close()
 			if err != nil {
 				t.Fail()
 			}
@@ -356,11 +357,11 @@ func TestHandlers_HandlePostJSONValue(t *testing.T) {
 			srv, handl := NewTestServer(&repo)
 			var model models.Metrics
 			json.Unmarshal([]byte(tt.want.body), &model)
-			//log.Println(model)
 			handl.Repo.InsertMetric(model)
 			srv.ServeHTTP(w, request)
 			resp := w.Result()
 			respBody, err := ioutil.ReadAll(resp.Body)
+			defer resp.Body.Close()
 			if err != nil {
 				t.Fail()
 			}
