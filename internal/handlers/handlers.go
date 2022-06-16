@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/storage"
@@ -79,48 +79,19 @@ func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request)
 			http.Error(w, "Data error!", http.StatusBadRequest)
 			return
 		}
-		for i := range obj.Repo.JSONDB {
-			if obj.Repo.JSONDB[i].ID == data.ID {
-				data.Value = obj.Repo.JSONDB[i].Value
-				data.Delta = obj.Repo.JSONDB[i].Delta
-				jData, _ := json.Marshal(data)
-				w.WriteHeader(http.StatusOK)
-				w.Write(jData)
-				return
-			}
-		}
-		if val, ok := obj.Repo.GetByName(data.ID); ok {
-			if data.MType != "gauge" {
-				intVal, _ := strconv.ParseInt(val, 10, 64)
-				data.Delta = &intVal
-			} else if data.MType != "counter" {
-				floatVal, _ := strconv.ParseFloat(val, 64)
-				data.Value = &floatVal
-			} else {
-				http.Error(w, "Type not found!", http.StatusNotImplemented)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			jData, _ := json.Marshal(data)
+		if d, err := obj.Repo.GetMetric(*data); err == nil {
+			jData, _ := json.Marshal(d)
 			w.WriteHeader(http.StatusOK)
 			w.Write(jData)
+			return
 		} else {
-			var intVal = new(int64)
-			floatVal := 0.0
-			data.Delta = intVal
-			data.Value = &floatVal
-			w.Header().Set("Content-Type", "application/json")
-			jData, _ := json.Marshal(data)
+			jData, _ := json.Marshal(d)
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(jData)
+			return
+
 		}
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		http.Error(w, "Not json", http.StatusBadRequest)
-		return
-
 	}
-
 }
 
 func (obj *Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
@@ -132,19 +103,29 @@ func (obj *Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func (obj *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
 	typeVal := chi.URLParam(r, "type")
 	nameVal := chi.URLParam(r, "name")
-
 	if (typeVal != "gauge") && (typeVal != "counter") {
 		http.Error(w, "Type not found!", http.StatusNotImplemented)
 		return
 	}
-	if valueVar, ok := obj.Repo.GetByName(nameVal); !ok {
+	data := models.Metrics{}
+	data.ID = nameVal
+	data.MType = typeVal
+	if valueVar, ok := obj.Repo.GetMetric(data); ok != nil {
 		http.Error(w, "Name not found!", http.StatusNotFound)
 		return
 	} else {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(valueVar))
+		if valueVar.Value == nil {
+			tmp := fmt.Sprintf("%d", *valueVar.Delta)
+			w.Write([]byte(tmp))
+		} else {
+			tmp := fmt.Sprintf("%f", *valueVar.Value)
+			w.Write([]byte(tmp))
+		}
+
 	}
 
 }

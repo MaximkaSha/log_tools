@@ -1,12 +1,18 @@
 package handlers
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHandlers_HandleUpdate(t *testing.T) {
@@ -81,7 +87,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			name: "get value possitive", //надо значение из body проверить
 			want: want{
 				code:        200,
-				contentType: "",
+				contentType: "text/html",
 			},
 			url:    "/value/gauge/TestCount",
 			method: "GET",
@@ -108,7 +114,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			name: "get home", //надо значение из body проверить
 			want: want{
 				code:        200,
-				contentType: "",
+				contentType: "text/html",
 			},
 			url:    "/",
 			method: "home",
@@ -177,4 +183,204 @@ func TestHandlers_HandleGetUpdate(t *testing.T) {
 			tt.obj.HandleGetUpdate(tt.args.w, tt.args.r)
 		})
 	}
+}
+
+func TestHandlers_HandlePostJSONUpdate(t *testing.T) {
+	// определяем структуру теста
+	type want struct {
+		code        int
+		contentType string
+		body        string
+	}
+	// создаём массив тестов: имя и желаемый результат
+	tests := []struct {
+		name        string
+		want        want
+		url         string
+		method      string
+		contentType string
+		data        string
+	}{
+		// определяем все тесты
+		{
+			name: "positive json #1",
+			want: want{
+				code:        200,
+				contentType: "application/json",
+				body:        `{"id":"Alloc","type":"gauge","value":1072448}`,
+			},
+			url:         "/update/",
+			method:      "POST",
+			data:        `{"id":"Alloc","type":"gauge","value":1072448}`,
+			contentType: "application/json",
+		},
+		{
+			name: "positive json #2",
+			want: want{
+				code:        200,
+				contentType: "application/json",
+				body:        `{"id":"Alloc","type":"gauge","value":1072448.001}`,
+			},
+			url:         "/update/",
+			method:      "POST",
+			data:        `{"id":"Alloc","type":"gauge","value":1072448.001}`,
+			contentType: "application/json",
+		},
+		{
+			name: "positive json #3",
+			want: want{
+				code:        200,
+				contentType: "application/json",
+				body:        `{"id":"Alloc","type":"counter","value":1072448}`,
+			},
+			url:         "/update/",
+			method:      "POST",
+			data:        `{"id":"Alloc","type":"counter","value":1072448}`,
+			contentType: "application/json",
+		},
+		{
+			name: "negative json #4",
+			want: want{
+				code:        404,
+				contentType: "application/json",
+				body:        `{"id":"Alloc","type":"counter","value":1072448}`,
+			},
+			url:         "/update/",
+			method:      "POST",
+			data:        ``,
+			contentType: "text/html",
+		},
+		{
+			name: "negative json #5",
+			want: want{
+				code:        404,
+				contentType: "application/json",
+				body:        `{"id":"Alloc","type":"counter","value":1072448.0001}`,
+			},
+			url:         "/update/",
+			method:      "POST",
+			data:        ``,
+			contentType: "application/json",
+		},
+		{
+			name: "negative json #6",
+			want: want{
+				code:        404,
+				contentType: "application/json",
+				body:        `{"id":"Alloc","type":"gauge","value":sdfghgfd}`,
+			},
+			url:         "/update/",
+			method:      "POST",
+			data:        ``,
+			contentType: "application/json",
+		},
+		{
+			name: "negative json #7",
+			want: want{
+				code:        404,
+				contentType: "application/json",
+				body:        `{"id":"Alloc","type":"asdfgfd","value":1072448.0001}`,
+			},
+			url:         "/update/",
+			method:      "POST",
+			data:        ``,
+			contentType: "application/json",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := storage.NewRepo()
+			var request = new(http.Request)
+			//data := strings.NewReader(tt.data)
+			//data, _ := json.Marshal(tt.data)
+			request = httptest.NewRequest(http.MethodPost, tt.url, strings.NewReader(tt.data))
+			request.Header.Add("Content-Type", tt.contentType)
+			w := httptest.NewRecorder()
+			srv, _ := NewTestServer(&repo)
+			srv.ServeHTTP(w, request)
+			resp := w.Result()
+			respBody, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Fail()
+			}
+
+			assert.Equal(t, tt.want.code, resp.StatusCode)
+			assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-type"))
+			if tt.data != `` {
+				require.JSONEq(t, tt.want.body, string(respBody))
+			}
+
+		})
+	}
+}
+
+func TestHandlers_HandlePostJSONValue(t *testing.T) {
+	// определяем структуру теста
+	type want struct {
+		code        int
+		contentType string
+		body        string
+	}
+	// создаём массив тестов: имя и желаемый результат
+	tests := []struct {
+		name        string
+		want        want
+		url         string
+		method      string
+		contentType string
+		data        string
+	}{
+		// определяем все тесты
+		{
+			name: "positive json #1",
+			want: want{
+				code:        200,
+				contentType: "application/json",
+				body:        `{"id":"Alloc","type":"gauge","value":1072448,"delta":0}`,
+			},
+			url:         "/value/",
+			method:      "POST",
+			data:        `{"id":"Alloc","type":"gauge"}`,
+			contentType: "application/json",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := storage.NewRepo()
+			var request = new(http.Request)
+			//data := strings.NewReader(tt.data)
+			//data, _ := json.Marshal(tt.data)
+			request = httptest.NewRequest(http.MethodPost, tt.url, strings.NewReader(tt.data))
+			request.Header.Add("Content-Type", tt.contentType)
+			w := httptest.NewRecorder()
+			srv, handl := NewTestServer(&repo)
+			var model models.Metrics
+			json.Unmarshal([]byte(tt.want.body), &model)
+			//log.Println(model)
+			handl.Repo.InsertMetric(model)
+			srv.ServeHTTP(w, request)
+			resp := w.Result()
+			respBody, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Fail()
+			}
+
+			assert.Equal(t, tt.want.code, resp.StatusCode)
+			assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-type"))
+			if tt.data != `` {
+				require.JSONEq(t, tt.want.body, string(respBody))
+			}
+
+		})
+	}
+}
+
+func NewTestServer(repo *storage.Repository) (*chi.Mux, *Handlers) {
+	handl := NewHandlers(*repo)
+	mux := chi.NewRouter()
+	mux.Post("/update/", handl.HandlePostJSONUpdate)
+	mux.Post("/value/", handl.HandlePostJSONValue)
+
+	return mux, &handl
+
 }

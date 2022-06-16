@@ -3,7 +3,6 @@ package storage
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,44 +14,25 @@ import (
 )
 
 type Repository struct {
-	db     map[string]string
+	//	db     map[string]string
 	JSONDB []models.Metrics
 }
 
 func (r *Repository) InsertMetric(m models.Metrics) error {
-	if m.MType == "counter" {
-		if oldVal, ok := r.db[m.ID]; ok {
-			oldInt, _ := strconv.ParseInt(oldVal, 10, 64)
-			newInt := *m.Delta
-			r.db[m.ID] = fmt.Sprint(newInt + oldInt)
-			tmpVar := newInt + oldInt
-			m.Delta = &tmpVar
-			log.Println(m)
-		} else {
-			r.db[m.ID] = fmt.Sprint(m.Delta)
-		}
-	}
-	if m.MType == "gauge" {
-		r.db[m.ID] = fmt.Sprint(*m.Value)
-	}
 	r.AppendMetric(m)
 	return nil
 }
 
 func (r *Repository) AppendMetric(m models.Metrics) {
-
 	for i := range r.JSONDB {
-		if r.JSONDB[i].ID == m.ID && m.MType == "counter" {
+		if r.JSONDB[i].ID == m.ID {
 			newDelta := *(r.JSONDB[i].Delta) + *(m.Delta)
 			r.JSONDB[i].Delta = &newDelta
 			r.JSONDB[i].Value = m.Value
 			return
-		} else if r.JSONDB[i].ID == m.ID && m.MType == "gauge" {
-			r.JSONDB[i].Delta = m.Delta
-			r.JSONDB[i].Value = m.Value
-			return
 		}
 	}
+	//	log.Println(m)
 	r.JSONDB = append(r.JSONDB, m)
 }
 
@@ -87,10 +67,33 @@ func (r *Repository) Restore(file string) {
 
 }
 
-func (r Repository) InsertData(typeVar string, name string, value string) int {
+func (r *Repository) GetMetric(data models.Metrics) (models.Metrics, error) {
+	for i := range r.JSONDB {
+		//log.Printf("db: %s , data:%s", r.JSONDB[i].ID, data.ID)
+		if r.JSONDB[i].ID == data.ID {
+			data.Value = r.JSONDB[i].Value
+			data.Delta = r.JSONDB[i].Delta
+			return data, nil
+		}
+	}
+	//log.Println("here")
+	var intVal = new(int64)
+	floatVal := 0.0
+	data.Delta = intVal
+	data.Value = &floatVal
+	return data, errors.New("no data")
+
+}
+
+func (r *Repository) InsertData(typeVar string, name string, value string) int {
+	var model models.Metrics
+	model.ID = name
+	model.MType = typeVar
+	//	log.Println(value)
 	if typeVar == "gauge" {
 		if utils.CheckIfStringIsNumber(value) {
-			r.insertGouge(name, value)
+			tmp, _ := strconv.ParseFloat(value, 64)
+			model.Value = &tmp
 		} else {
 			//http.Error(w, "Bad value found!", http.StatusBadRequest)
 			return http.StatusBadRequest
@@ -98,25 +101,29 @@ func (r Repository) InsertData(typeVar string, name string, value string) int {
 	}
 	if typeVar == "counter" {
 		if utils.CheckIfStringIsNumber(value) {
-			r.insertCount(name, value)
+			tmp, _ := strconv.ParseInt(value, 10, 64)
+			model.Delta = &tmp
+			//	log.Println(*model.Delta)
 		} else {
 			//http.Error(w, "Bad value found!", http.StatusBadRequest)
 			return http.StatusBadRequest
 		}
 	}
+	r.InsertMetric(model)
 	return http.StatusOK
 }
 
 func NewRepo() Repository {
 	return Repository{
-		db: make(map[string]string),
+		JSONDB: []models.Metrics{},
+		//	db: make(map[string]string),
 	}
 }
 
+/*
 func (r Repository) GetAll() map[string]string {
 	return r.db
 }
-
 func (r Repository) GetByName(name string) (string, bool) {
 	if value, ok := r.db[name]; ok {
 		return value, true
@@ -143,4 +150,4 @@ func (r Repository) insertCount(name, value string) error {
 		return nil
 	}
 	return errors.New("not int")
-}
+} */
