@@ -26,8 +26,8 @@ func (r *Repository) InsertMetric(m models.Metrics) error {
 func (r *Repository) AppendMetric(m models.Metrics) {
 	for i := range r.JSONDB {
 		if r.JSONDB[i].ID == m.ID {
-			log.Println(r.JSONDB[i])
-			log.Println(m)
+			//	log.Println(r.JSONDB[i])
+			//	log.Println(m)
 			if m.Delta != nil {
 				newDelta := *(r.JSONDB[i].Delta) + *(m.Delta)
 				r.JSONDB[i].Delta = &newDelta
