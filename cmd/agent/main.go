@@ -47,6 +47,7 @@ func main() {
 	if envCfg["POLL_INTERVAL"] && a != nil {
 		cfg.PollInterval = time.Duration(*pollIntervalArg)
 	}
-	agentService := agent.NewAgent(*cfg)
+	agentService := agent.NewAgent()
+	agentService.StartService(&cfg)
 
 }

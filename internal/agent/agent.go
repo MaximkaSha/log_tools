@@ -7,7 +7,10 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/MaximkaSha/log_tools/internal/models"
@@ -40,6 +43,35 @@ func (a *Agent) AppendMetric(m models.Metrics) {
 		}
 	}
 	a.logDB = append(a.logDB, m)
+}
+
+func (a *Agent) StartService(cfg *Config) {
+	var pollInterval = cfg.PollInterval
+	var reportInterval = cfg.ReportInterval
+	//var logData = new(logData)
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+	//	var rtm runtime.MemStats
+	log.Println("Logger start...")
+	tickerCollect := time.NewTicker(pollInterval)
+	tickerSend := time.NewTicker(reportInterval)
+	defer tickerCollect.Stop()
+	defer tickerSend.Stop()
+	for {
+		select {
+		case <-tickerCollect.C:
+			a.CollectLogs()
+		case <-tickerSend.C:
+			a.SendLogsbyPost("http://" + cfg.Server + "/update/")
+			a.SendLogsbyJSON("http://" + cfg.Server + "/update/")
+		case <-sigc:
+			log.Println("Got quit signal.")
+			return
+		}
+	}
 }
 
 func (a Agent) SendLogsbyJSON(url string) error {
