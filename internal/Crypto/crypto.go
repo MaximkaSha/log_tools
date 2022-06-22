@@ -48,6 +48,7 @@ func (c *CryptoService) InitCryptoService(keyFile string) error {
 }
 
 func (c CryptoService) IsServiceEnable() bool {
+	//some data to commit
 	return c.IsEnable
 }
 
