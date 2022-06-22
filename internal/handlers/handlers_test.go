@@ -378,7 +378,7 @@ func TestHandlers_HandlePostJSONValue(t *testing.T) {
 }
 
 func NewTestServer(repo *storage.Repository) (*chi.Mux, *Handlers) {
-	handl := NewHandlers(*repo)
+	handl := NewHandlers(*repo, crypto.NewCryptoService())
 	mux := chi.NewRouter()
 	mux.Post("/update/", handl.HandlePostJSONUpdate)
 	mux.Post("/value/", handl.HandlePostJSONValue)

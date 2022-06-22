@@ -1,8 +1,7 @@
 package models
 
 import (
-	"encoding/json"
-	"log"
+	"fmt"
 )
 
 type Metrics struct {
@@ -14,22 +13,33 @@ type Metrics struct {
 }
 
 func (m Metrics) String() string {
-	j, err := json.Marshal(m)
-	if err != nil {
-		log.Println("Stringer error")
-		return ""
-	}
-	ret := string(j)
-	return ret[1 : len(ret)-1]
+	/*	j, err := json.Marshal(m)
+		if err != nil {
+			log.Println("Stringer error")
+			return ""
+		}
+		ret := string(j) */
+
+	return m.formatString()
 }
 
 func (m Metrics) StringData() string {
-	m.Hash = ""
-	j, err := json.Marshal(m)
-	if err != nil {
-		log.Println("Stringer error")
-		return ""
+	/*	m.Hash = ""
+		j, err := json.Marshal(m)
+		if err != nil {
+			log.Println("Stringer error")
+			return ""
+		}
+		ret := string(j) */
+	return m.formatString()
+}
+
+func (m Metrics) formatString() string {
+	switch m.MType {
+	case "gauge":
+		return fmt.Sprintf("%s:gauge:%d", m.ID, m.Value)
+	case "counter":
+		return fmt.Sprintf("%s:counter:%d", m.ID, m.Delta)
 	}
-	ret := string(j)
-	return ret[1 : len(ret)-1]
+	return ""
 }

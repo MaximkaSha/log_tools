@@ -80,11 +80,11 @@ func (a *Agent) StartService() {
 
 func (a Agent) SendLogsbyJSON(url string) error {
 	hasher := crypto.NewCryptoService()
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	hasher.InitCryptoService(a.cfg.KeyFile)
 	for i := range a.logDB {
 		var data = models.Metrics{}
 		data = a.logDB[i]
+		//log.Println(data)
 		//log.Println(hasher.IsServiceEnable())
 		if hasher.IsServiceEnable() {
 			_, err := hasher.Hash(&data)
@@ -94,6 +94,7 @@ func (a Agent) SendLogsbyJSON(url string) error {
 			}
 		}
 		//	log.Println(hasher.CheckHash(data))
+		//log.Println(data)
 		jData, _ := json.Marshal(data)
 
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
