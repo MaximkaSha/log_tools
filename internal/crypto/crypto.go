@@ -29,7 +29,7 @@ func (c *CryptoService) InitCryptoService(keyFile string) error {
 	fileKey, err := os.Open(keyFile)
 	if err != nil {
 		c.IsEnable = false
-		log.Println("Can't open key file")
+		log.Printf("Can't open key file %s", keyFile)
 		return errors.New("can't open key file")
 	}
 	defer fileKey.Close()

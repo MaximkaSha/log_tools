@@ -88,7 +88,7 @@ func (r *Repository) GetMetric(data models.Metrics) (models.Metrics, error) {
 
 }
 
-func (r *Repository) InsertData(typeVar string, name string, value string) int {
+func (r *Repository) InsertData(typeVar string, name string, value string, hash string) int {
 	var model models.Metrics
 	model.ID = name
 	model.MType = typeVar
@@ -112,6 +112,7 @@ func (r *Repository) InsertData(typeVar string, name string, value string) int {
 			return http.StatusBadRequest
 		}
 	}
+	model.Hash = hash
 	r.InsertMetric(model)
 	return http.StatusOK
 }

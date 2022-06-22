@@ -40,7 +40,22 @@ func (obj *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //sh
 		http.Error(w, "Type not found!", http.StatusNotImplemented)
 		return
 	}
-	result := obj.Repo.InsertData(typeVal, nameVal, valueVal)
+	var data models.Metrics
+	if obj.cryptoService.IsServiceEnable() {
+		data.ID = nameVal
+		data.MType = typeVal
+		switch data.MType {
+		case "gauge":
+			tmp, _ := strconv.ParseFloat(valueVal, 64)
+			data.Value = &tmp
+		case "counter":
+			tmp, _ := strconv.ParseInt(valueVal, 10, 64)
+			data.Delta = &tmp
+		}
+		obj.cryptoService.Hash(&data)
+	}
+
+	result := obj.Repo.InsertData(typeVal, nameVal, valueVal, data.Hash)
 	if result != 200 {
 		http.Error(w, "Bad value found!", result)
 		return
