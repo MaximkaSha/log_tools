@@ -62,10 +62,12 @@ func (obj *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		if !obj.cryptoService.CheckHash(*data) {
-			log.Println("Sing check fail!")
-			w.WriteHeader(http.StatusBadRequest)
-			return
+		if obj.cryptoService.IsEnable {
+			if !obj.cryptoService.CheckHash(*data) {
+				log.Println("Sing check fail!")
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 		}
 		obj.Repo.InsertMetric(*data)
 		//obj.Repo.SaveData(obj.SyncFile)
@@ -90,11 +92,13 @@ func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		if d, err := obj.Repo.GetMetric(*data); err == nil {
-			_, err = obj.cryptoService.Hash(&d)
-			if err != nil {
-				log.Println("Hasher error!")
-				w.WriteHeader(http.StatusInternalServerError)
-				return
+			if obj.cryptoService.IsEnable {
+				_, err = obj.cryptoService.Hash(&d)
+				if err != nil {
+					log.Println("Hasher error!")
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
 			}
 			jData, _ := json.Marshal(d)
 			w.WriteHeader(http.StatusOK)

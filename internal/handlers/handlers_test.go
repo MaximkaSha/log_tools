@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/go-chi/chi/v5"
@@ -134,7 +135,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			w := httptest.NewRecorder()
 			// определяем хендлер
 			repo := storage.NewRepo()
-			handl := NewHandlers(repo)
+			handl := NewHandlers(repo, crypto.NewCryptoService())
 			mux := chi.NewRouter()
 			if tt.method == "POST" {
 				mux.Post("/update/{type}/{name}/{value}", handl.HandleUpdate)
