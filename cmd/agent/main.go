@@ -20,7 +20,7 @@ func init() {
 	srvAdressArg = flag.String("a", "localhost:8080", "host:port (default localhost:8080)")
 	reportIntervalArg = flag.Duration("r", time.Duration(10*time.Second), "report to server interval in seconds (default 10s)")
 	pollIntervalArg = flag.Duration("p", time.Duration(2*time.Second), "poll interval in seconds (default 2s)")
-	keyFile = flag.String("k", "key.txt", "path to key file (default key.txt)")
+	keyFile = flag.String("k", "", "hmac key")
 }
 
 func main() {

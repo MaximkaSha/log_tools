@@ -95,7 +95,7 @@ func init() {
 	storeIntervalArg = flag.Duration("i", time.Duration(300*time.Second), "store interval in seconds (default 300s)")
 	storeFileArg = flag.String("f", "/tmp/devops-metrics-db.json", "path to file for store (default '/tmp/devops-metrics-db.json')")
 	restoreFlagArg = flag.Bool("r", true, "if is true restore data from env:RESTORE (default true)")
-	keyFileArg = flag.String("k", "key.txt", "path to key file  (default 'key.txt')")
+	keyFileArg = flag.String("k", "", "hmac key")
 }
 
 func (s *Server) StartServe() {

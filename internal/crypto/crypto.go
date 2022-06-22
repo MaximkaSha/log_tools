@@ -5,9 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"io/ioutil"
 	"log"
-	"os"
 
 	"github.com/MaximkaSha/log_tools/internal/models"
 )
@@ -26,20 +24,20 @@ func NewCryptoService() CryptoService {
 }
 
 func (c *CryptoService) InitCryptoService(keyFile string) error {
-	fileKey, err := os.Open(keyFile)
-	if err != nil {
-		c.IsEnable = false
-		log.Printf("Can't open key file %s", keyFile)
-		return errors.New("can't open key file")
-	}
-	defer fileKey.Close()
-	var keyBuf []byte
-	keyBuf, err = ioutil.ReadFile(keyFile)
+	/*	fileKey, err := os.Open(keyFile)
+		if err != nil {
+			c.IsEnable = false
+			log.Printf("Can't open key file %s", keyFile)
+			return errors.New("can't open key file")
+		}
+		defer fileKey.Close() */
+	//var keyBuf []byte
+	keyBuf := []byte(keyFile)
 	//log.Println(keyBuf)
-	if err != nil || len(keyBuf) == 0 {
+	if len(keyBuf) == 0 {
 		c.IsEnable = false
-		log.Println("Can't read key file or no key")
-		return errors.New("can't read key file or no key")
+		log.Println("no key")
+		return errors.New("no key")
 	}
 	c.key = keyBuf
 	log.Println("Crypto is enabled!")
