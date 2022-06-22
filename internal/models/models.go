@@ -12,17 +12,6 @@ type Metrics struct {
 	Hash  string   `json:"hash,omitempty"`  // значение хеш-функции
 }
 
-func (m Metrics) String() string {
-	/*	j, err := json.Marshal(m)
-		if err != nil {
-			log.Println("Stringer error")
-			return ""
-		}
-		ret := string(j) */
-
-	return m.formatString()
-}
-
 func (m Metrics) StringData() string {
 	/*	m.Hash = ""
 		j, err := json.Marshal(m)
@@ -37,9 +26,10 @@ func (m Metrics) StringData() string {
 func (m Metrics) formatString() string {
 	switch m.MType {
 	case "gauge":
-		return fmt.Sprintf("%s:gauge:%d", m.ID, m.Value)
+		//log.Printf("gauge %f", *m.Value)
+		return fmt.Sprintf("%s:gauge:%f", m.ID, *m.Value)
 	case "counter":
-		return fmt.Sprintf("%s:counter:%d", m.ID, m.Delta)
+		return fmt.Sprintf("%s:counter:%d", m.ID, *m.Delta)
 	}
 	return ""
 }

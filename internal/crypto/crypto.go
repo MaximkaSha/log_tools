@@ -48,13 +48,12 @@ func (c *CryptoService) InitCryptoService(keyFile string) error {
 }
 
 func (c CryptoService) IsServiceEnable() bool {
-	//some data to commit
 	return c.IsEnable
 }
 
 func (c CryptoService) Hash(m *models.Metrics) (int, error) {
 	hasher := hmac.New(sha256.New, c.key)
-	src := m.String()
+	src := m.StringData()
 	//log.Println(string(src))
 	nBytes, err := hasher.Write([]byte(src))
 	if err != nil {
