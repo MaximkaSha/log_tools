@@ -3,26 +3,30 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
+	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/go-chi/chi/v5"
 )
 
 type Handlers struct {
-	handlers *http.ServeMux
-	Repo     storage.Repository
-	SyncFile string
+	handlers      *http.ServeMux
+	Repo          storage.Repository
+	SyncFile      string
+	cryptoService crypto.CryptoService
 }
 
-func NewHandlers(repo storage.Repository) Handlers {
+func NewHandlers(repo storage.Repository, cryptoService crypto.CryptoService) Handlers {
 	handl := http.NewServeMux()
 	return Handlers{
-		handlers: handl,
-		Repo:     repo,
-		SyncFile: "",
+		handlers:      handl,
+		Repo:          repo,
+		SyncFile:      "",
+		cryptoService: cryptoService,
 	}
 }
 
@@ -58,6 +62,11 @@ func (obj *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
+		if !obj.cryptoService.CheckHash(*data) {
+			log.Println("Sing check fail!")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		obj.Repo.InsertMetric(*data)
 		//obj.Repo.SaveData(obj.SyncFile)
 		w.WriteHeader(http.StatusOK)
@@ -81,11 +90,23 @@ func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		if d, err := obj.Repo.GetMetric(*data); err == nil {
+			_, err = obj.cryptoService.Hash(&d)
+			if err != nil {
+				log.Println("Hasher error!")
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 			jData, _ := json.Marshal(d)
 			w.WriteHeader(http.StatusOK)
 			w.Write(jData)
 			return
 		} else {
+			_, err = obj.cryptoService.Hash(&d)
+			if err != nil {
+				log.Println("Hasher error!")
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 			jData, _ := json.Marshal(d)
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(jData)

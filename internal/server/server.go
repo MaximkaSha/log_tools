@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/handlers"
 	"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/caarlos0/env/v6"
@@ -24,6 +25,7 @@ type Config struct {
 	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`                    // 0 for sync
 	StoreFile     string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"` // empty for no store test.json /tmp/devops-metrics-db.json
 	RestoreFlag   bool          `env:"RESTORE" envDefault:"true"`                           //restore from file
+	KeyFileFlag   string        `env:"KEY" envDefault:"key.txt"`                            // key file
 }
 
 type Server struct {
@@ -63,9 +65,16 @@ func NewServer() Server {
 	if envCfg["RESTORE"] && a != nil {
 		cfg.RestoreFlag = *restoreFlagArg
 	}
+	a = flag.Lookup("k")
+	if envCfg["KEY"] && a != nil {
+		cfg.KeyFileFlag = *keyFileArg
+	}
 
 	repo := storage.NewRepo()
-	handl := handlers.NewHandlers(repo)
+	cryptoService := crypto.NewCryptoService()
+	cryptoService.InitCryptoService(cfg.KeyFileFlag)
+
+	handl := handlers.NewHandlers(repo, cryptoService)
 	return Server{
 		cfg:   cfg,
 		handl: handl,
@@ -78,6 +87,7 @@ var (
 	storeIntervalArg *time.Duration
 	storeFileArg     *string
 	restoreFlagArg   *bool
+	keyFileArg       *string
 )
 
 func init() {
@@ -85,6 +95,7 @@ func init() {
 	storeIntervalArg = flag.Duration("i", time.Duration(300*time.Second), "store interval in seconds (default 300s)")
 	storeFileArg = flag.String("f", "/tmp/devops-metrics-db.json", "path to file for store (default '/tmp/devops-metrics-db.json')")
 	restoreFlagArg = flag.Bool("r", true, "if is true restore data from env:RESTORE (default true)")
+	keyFileArg = flag.String("k", "key.txt", "path to key file  (default 'key.txt')")
 }
 
 func (s *Server) StartServe() {
