@@ -19,7 +19,7 @@ const (
 
 type Database struct {
 	ConString string
-	DB        sql.DB
+	DB        *sql.DB
 }
 
 func NewDatabase(con string) Database {
@@ -42,9 +42,9 @@ func (d *Database) InitDatabase() {
 	log.Println(psqlconn)
 
 	// open database
-	db, err := sql.Open("postgres", psqlconn)
+	var err error
+	d.DB, err = sql.Open("postgres", psqlconn)
 	CheckError(err)
-	d.DB = *db
 	//log.Println(d.DB)
 
 	// close database
@@ -59,7 +59,7 @@ func (d *Database) InitDatabase() {
 
 func CheckError(err error) {
 	if err != nil {
-		log.Println(err)
+		log.Println("Database error!")
 	}
 }
 
