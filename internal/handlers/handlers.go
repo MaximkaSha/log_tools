@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/MaximkaSha/log_tools/internal/crypto"
+	"github.com/MaximkaSha/log_tools/internal/database"
 	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/go-chi/chi/v5"
@@ -18,6 +19,7 @@ type Handlers struct {
 	Repo          storage.Repository
 	SyncFile      string
 	cryptoService crypto.CryptoService
+	DB            *database.Database
 }
 
 func NewHandlers(repo storage.Repository, cryptoService crypto.CryptoService) Handlers {
@@ -169,4 +171,17 @@ func (obj *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+}
+
+func (h Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
+	//log.Println(h.DB)
+	//h.DB.InitDatabase()
+	w.Header().Set("Content-Type", "text/html")
+	if k := h.DB.Ping(); k != nil {
+		log.Printf("error: %s", k)
+		http.Error(w, "Cant connect to DB", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	return
 }
