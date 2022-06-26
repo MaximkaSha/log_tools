@@ -59,7 +59,7 @@ func (d *Database) InitDatabase() {
 
 func CheckError(err error) {
 	if err != nil {
-		panic(err)
+		log.Println(err)
 	}
 }
 

@@ -89,18 +89,16 @@ func NewServer() Server {
 	if cfg.DatabaseEnv != "" {
 		DB := database.NewDatabase(cfg.DatabaseEnv)
 		DB.InitDatabase()
-		err := DB.Ping()
-		log.Println(err)
-
-		handl.DB = &DB
-		return Server{
-			cfg:   cfg,
-			handl: handl,
-			srv:   http.Server{},
-			db:    &DB,
+		if err := DB.Ping(); err == nil {
+			handl.DB = &DB
+			return Server{
+				cfg:   cfg,
+				handl: handl,
+				srv:   http.Server{},
+				db:    &DB,
+			}
 		}
 	}
-
 	return Server{
 		cfg:   cfg,
 		handl: handl,
