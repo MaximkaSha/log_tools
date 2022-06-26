@@ -63,7 +63,8 @@ func NewServer() Server {
 	b := flag.Lookup("d")
 	//log.Println(b)
 	//log.Println(envCfg["DATABASE_DSN"])
-	if !envCfg["DATABASE_DSN"] && b != nil {
+	_, present := os.LookupEnv("DATABASE_DSN")
+	if !present && b != nil {
 		cfg.DatabaseEnv = *databaseArg
 	}
 	//log.Println(cfg.DatabaseEnv)
