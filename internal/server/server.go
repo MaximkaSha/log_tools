@@ -26,7 +26,7 @@ type Config struct {
 	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`                    // 0 for sync
 	StoreFile     string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"` // empty for no store test.json /tmp/devops-metrics-db.json
 	RestoreFlag   bool          `env:"RESTORE" envDefault:"true"`                           //restore from file
-	KeyFileFlag   string        `env:"KEY"`                                                 // key
+	KeyFileFlag   string        `env:"KEY" envDefault:"12345678"`                           // key
 	DatabaseEnv   string        `env:"DATABASE_DSN"`
 }
 
@@ -72,6 +72,7 @@ func NewServer() Server {
 		cfg.StoreFile = *storeFileArg
 	}
 	a = flag.Lookup("r")
+
 	if envCfg["RESTORE"] && a != nil {
 		cfg.RestoreFlag = *restoreFlagArg
 	}
@@ -79,12 +80,12 @@ func NewServer() Server {
 	if envCfg["KEY"] && a != nil {
 		cfg.KeyFileFlag = *keyFileArg
 	}
-
+	//log.Println(cfg.KeyFileFlag)
 	repo := storage.NewRepo()
 	cryptoService := crypto.NewCryptoService()
 	cryptoService.InitCryptoService(cfg.KeyFileFlag)
 	handl := handlers.NewHandlers(repo, cryptoService)
-	log.Println(cfg.DatabaseEnv)
+	//log.Println(cfg.DatabaseEnv)
 	if cfg.DatabaseEnv != "" {
 		DB := database.NewDatabase(cfg.DatabaseEnv)
 		DB.InitDatabase()

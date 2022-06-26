@@ -33,7 +33,7 @@ func (c *CryptoService) InitCryptoService(keyFile string) error {
 		defer fileKey.Close() */
 	//var keyBuf []byte
 	keyBuf := []byte(keyFile)
-	//log.Println(keyBuf)
+	//log.Println(keyBu)
 	if len(keyBuf) == 0 {
 		c.IsEnable = false
 		log.Println("no key")
