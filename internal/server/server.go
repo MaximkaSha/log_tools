@@ -61,9 +61,12 @@ func NewServer() Server {
 		cfg.StoreInterval = *storeIntervalArg
 	}
 	b := flag.Lookup("d")
-	if envCfg["DATABASE_DSN"] && b != nil {
+	//log.Println(b)
+	//log.Println(envCfg["DATABASE_DSN"])
+	if !envCfg["DATABASE_DSN"] && b != nil {
 		cfg.DatabaseEnv = *databaseArg
 	}
+	//log.Println(cfg.DatabaseEnv)
 	a = flag.Lookup("f")
 	if envCfg["STORE_FILE"] && a != nil && b == nil {
 		cfg.StoreFile = *storeFileArg
@@ -81,10 +84,13 @@ func NewServer() Server {
 	cryptoService := crypto.NewCryptoService()
 	cryptoService.InitCryptoService(cfg.KeyFileFlag)
 	handl := handlers.NewHandlers(repo, cryptoService)
+	log.Println(cfg.DatabaseEnv)
 	if cfg.DatabaseEnv != "" {
 		DB := database.NewDatabase(cfg.DatabaseEnv)
 		DB.InitDatabase()
-		DB.Ping()
+		err := DB.Ping()
+		log.Println(err)
+
 		handl.DB = &DB
 		return Server{
 			cfg:   cfg,

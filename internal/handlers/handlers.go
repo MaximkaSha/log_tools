@@ -173,15 +173,14 @@ func (obj *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
-	//log.Println(h.DB)
-	//h.DB.InitDatabase()
+func (obj Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
+	//log.Println(obj.DB)
+	//obj.DB.InitDatabase()
 	w.Header().Set("Content-Type", "text/html")
-	if k := h.DB.Ping(); k != nil {
+	if k := obj.DB.Ping(); k != nil {
 		log.Printf("error: %s", k)
 		http.Error(w, "Cant connect to DB", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	return
 }

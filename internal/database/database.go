@@ -39,6 +39,7 @@ func NewDefaultDatabase() Database {
 
 func (d *Database) InitDatabase() {
 	psqlconn := d.ConString
+	log.Println(psqlconn)
 
 	// open database
 	db, err := sql.Open("postgres", psqlconn)
