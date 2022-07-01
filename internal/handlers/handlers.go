@@ -174,14 +174,9 @@ func (obj *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (obj Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
-	if obj.DB == nil {
-		http.Error(w, "Cant connect to DB", http.StatusInternalServerError)
-		return
-	}
+func (obj *Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	if k := obj.DB.Ping(); k != nil {
-		log.Printf("error: %s", k)
+	if !obj.Repo.PingDB() {
 		http.Error(w, "Cant connect to DB", http.StatusInternalServerError)
 		return
 	}

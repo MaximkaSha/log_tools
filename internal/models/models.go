@@ -41,4 +41,5 @@ type Storager interface {
 	GetAll() []Metrics
 	SaveData(file string)
 	Restore(file string)
+	PingDB() bool
 }

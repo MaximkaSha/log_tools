@@ -51,6 +51,7 @@ func (r *Repository) SaveData(file string) {
 }
 
 func (r *Repository) Restore(file string) {
+	log.Println(file)
 	if _, err := os.Stat(file); err != nil {
 		log.Println("Restore file not found")
 		return
@@ -118,6 +119,10 @@ func (r *Repository) InsertData(typeVar string, name string, value string, hash 
 
 func (r Repository) GetAll() []models.Metrics {
 	return r.JSONDB
+}
+
+func (r Repository) PingDB() bool {
+	return false
 }
 
 func NewRepo() Repository {

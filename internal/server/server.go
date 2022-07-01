@@ -66,7 +66,7 @@ func NewServer() Server {
 		cfg.DatabaseEnv = *databaseArg
 	}
 	a = flag.Lookup("f")
-	if envCfg["STORE_FILE"] && a != nil && b == nil {
+	if envCfg["STORE_FILE"] && a != nil {
 		cfg.StoreFile = *storeFileArg
 	}
 	a = flag.Lookup("r")

@@ -4,12 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -85,14 +83,6 @@ func CheckError(err error) {
 	}
 }
 
-func (d *Database) Ping() error {
-	if e := d.DB.Ping(); e != nil {
-		log.Printf("error: %s", e)
-		return errors.New("cant Ping DB")
-	}
-	return nil
-}
-
 func (d Database) CreateDBIfNotExist() error {
 	var query = `SELECT 'CREATE DATABASE logs'
 	WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'logs')`
@@ -136,6 +126,7 @@ func (d Database) InsertMetric(m models.Metrics) error {
 	hash = EXCLUDED.hash`
 	ctx, cancelfunc := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelfunc()
+	//log.Println(d.DB.Ping())
 	_, err := d.DB.ExecContext(ctx, query, m.ID, m.MType, m.Delta, m.Value, m.Hash)
 	if err != nil {
 		log.Printf("Error %s when appending  data", err)
@@ -214,22 +205,17 @@ func (d Database) SaveData(file string) {
 
 func (d Database) Restore(file string) {
 	//log.Println(file)
-	if _, err := os.Stat(file); err != nil {
-		log.Println("Restore file not found")
-		return
+	log.Println("DB Connected, no need to restore from file")
+}
+
+func (d Database) PingDB() bool {
+	//log.Println("HERE")
+	//log.Println(d)
+	//log.Println(d.DB)
+	if k := d.DB.Ping(); k != nil {
+		log.Printf("error: %s", k)
+		//http.Error(w, "Cant connect to DB", http.StatusInternalServerError)
+		return false
 	}
-	var data []models.Metrics
-	var jData, err = ioutil.ReadFile(file)
-	if err != nil {
-		log.Panic(err)
-	}
-	err = json.Unmarshal(jData, &data)
-	if err != nil {
-		log.Println("Data file corrupted")
-	} else {
-		for k := range data {
-			d.InsertMetric(data[k])
-		}
-		log.Print("Data restored from file")
-	}
+	return true
 }
