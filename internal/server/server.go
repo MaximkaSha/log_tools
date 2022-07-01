@@ -15,6 +15,7 @@ import (
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/database"
 	"github.com/MaximkaSha/log_tools/internal/handlers"
+	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/middleware"
@@ -57,17 +58,13 @@ func NewServer() Server {
 	}
 	a = flag.Lookup("i")
 	if envCfg["STORE_INTERVAL"] && a != nil {
-		//	log.Printf(storeIntervalArg.String())
 		cfg.StoreInterval = *storeIntervalArg
 	}
 	b := flag.Lookup("d")
-	//log.Println(b)
-	//log.Println(envCfg["DATABASE_DSN"])
 	_, present := os.LookupEnv("DATABASE_DSN")
 	if !present && b != nil {
 		cfg.DatabaseEnv = *databaseArg
 	}
-	//log.Println(cfg.DatabaseEnv)
 	a = flag.Lookup("f")
 	if envCfg["STORE_FILE"] && a != nil && b == nil {
 		cfg.StoreFile = *storeFileArg
@@ -81,30 +78,24 @@ func NewServer() Server {
 	if envCfg["KEY"] && a != nil {
 		cfg.KeyFileFlag = *keyFileArg
 	}
-	//log.Println(cfg.KeyFileFlag)
-	repo := storage.NewRepo()
+	var serv = Server{}
+	serv.cfg = cfg
+	var repo models.Storager
+	if cfg.DatabaseEnv == "" {
+		imMemory := storage.NewRepo()
+		repo = &imMemory
+	} else {
+		DB := database.NewDatabase(cfg.DatabaseEnv)
+		repo = &DB
+		DB.InitDatabase()
+		serv.db = &DB
+	}
 	cryptoService := crypto.NewCryptoService()
 	cryptoService.InitCryptoService(cfg.KeyFileFlag)
 	handl := handlers.NewHandlers(repo, cryptoService)
-	//log.Println(cfg.DatabaseEnv)
-	if cfg.DatabaseEnv != "" {
-		DB := database.NewDatabase(cfg.DatabaseEnv)
-		DB.InitDatabase()
-		if err := DB.Ping(); err == nil {
-			handl.DB = &DB
-			return Server{
-				cfg:   cfg,
-				handl: handl,
-				srv:   http.Server{},
-				db:    &DB,
-			}
-		}
-	}
-	return Server{
-		cfg:   cfg,
-		handl: handl,
-		srv:   http.Server{},
-	}
+	serv.handl = handl
+	serv.srv = http.Server{}
+	return serv
 }
 
 var (
@@ -152,9 +143,7 @@ func (s *Server) StartServe() {
 	fmt.Println("Server is listening...")
 	if err := s.srv.ListenAndServe(); err != nil {
 		log.Printf("Server shutdown: %s", err.Error())
-		if s.cfg.DatabaseEnv != "" {
-			s.db.DB.Close()
-		}
+		s.db.DB.Close()
 		s.saveData(s.cfg.StoreFile)
 	}
 }
@@ -177,6 +166,7 @@ func (s *Server) routins(cfg *Config) {
 			if err := s.srv.Shutdown(context.Background()); err != nil {
 				s.db.DB.Close()
 				log.Printf("Gracefully Shutdown: %v", err)
+
 			}
 			return
 		}

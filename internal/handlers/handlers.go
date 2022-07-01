@@ -10,19 +10,20 @@ import (
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/database"
 	"github.com/MaximkaSha/log_tools/internal/models"
-	"github.com/MaximkaSha/log_tools/internal/storage"
+
+	//"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/go-chi/chi/v5"
 )
 
 type Handlers struct {
 	handlers      *http.ServeMux
-	Repo          storage.Repository
+	Repo          models.Storager
 	SyncFile      string
 	cryptoService crypto.CryptoService
 	DB            *database.Database
 }
 
-func NewHandlers(repo storage.Repository, cryptoService crypto.CryptoService) Handlers {
+func NewHandlers(repo models.Storager, cryptoService crypto.CryptoService) Handlers {
 	handl := http.NewServeMux()
 	return Handlers{
 		handlers:      handl,
@@ -139,7 +140,7 @@ func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request)
 
 func (obj *Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	repo := obj.Repo.JSONDB
+	repo := obj.Repo.GetAll()
 	allData, _ := json.MarshalIndent(repo, "", "    ")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(allData))

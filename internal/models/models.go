@@ -33,3 +33,12 @@ func (m Metrics) formatString() string {
 	}
 	return ""
 }
+
+type Storager interface {
+	InsertMetric(m Metrics) error
+	GetMetric(data Metrics) (Metrics, error)
+	InsertData(typeVar string, name string, value string, hash string) int
+	GetAll() []Metrics
+	SaveData(file string)
+	Restore(file string)
+}

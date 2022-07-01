@@ -134,8 +134,8 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			// создаём новый Recorder
 			w := httptest.NewRecorder()
 			// определяем хендлер
-			repo := storage.NewRepo()
-			handl := NewHandlers(repo, crypto.NewCryptoService())
+			repo := new(models.Storager)
+			handl := NewHandlers(*repo, crypto.NewCryptoService())
 			mux := chi.NewRouter()
 			if tt.method == "POST" {
 				mux.Post("/update/{type}/{name}/{value}", handl.HandleUpdate)
@@ -377,8 +377,8 @@ func TestHandlers_HandlePostJSONValue(t *testing.T) {
 	}
 }
 
-func NewTestServer(repo *storage.Repository) (*chi.Mux, *Handlers) {
-	handl := NewHandlers(*repo, crypto.NewCryptoService())
+func NewTestServer(repo models.Storager) (*chi.Mux, *Handlers) {
+	handl := NewHandlers(repo, crypto.NewCryptoService())
 	mux := chi.NewRouter()
 	mux.Post("/update/", handl.HandlePostJSONUpdate)
 	mux.Post("/value/", handl.HandlePostJSONValue)
