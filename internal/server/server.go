@@ -143,7 +143,9 @@ func (s *Server) StartServe() {
 	fmt.Println("Server is listening...")
 	if err := s.srv.ListenAndServe(); err != nil {
 		log.Printf("Server shutdown: %s", err.Error())
-		s.db.DB.Close()
+		if s.db != nil {
+			s.db.DB.Close()
+		}
 		s.saveData(s.cfg.StoreFile)
 	}
 }

@@ -213,6 +213,7 @@ func (d Database) SaveData(file string) {
 }
 
 func (d Database) Restore(file string) {
+	//log.Println(file)
 	if _, err := os.Stat(file); err != nil {
 		log.Println("Restore file not found")
 		return
