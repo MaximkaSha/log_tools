@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -136,17 +137,15 @@ func (d Database) InsertMetric(m models.Metrics) error {
 }
 
 func (d Database) GetMetric(data models.Metrics) (models.Metrics, error) {
-	log.Println(data)
-	err := d.DB.QueryRow("SELECT mtype FROM log_data_2 WHERE id = $1", data.ID).Scan(&data.MType)
-	log.Println(data.MType)
-	switch data.MType {
-	case "counter":
-		err = d.DB.QueryRow("SELECT delta,hash FROM log_data_2 WHERE id = $1", data.ID).Scan(&data.Delta, &data.Hash)
-	case "gauge":
-		err = d.DB.QueryRow("SELECT value,hash FROM log_data_2 WHERE id = $1", data.ID).Scan(&data.Value, &data.Hash)
+	//log.Println(data)
+	err := d.DB.QueryRow("SELECT mtype,delta,value,hash FROM log_data_2 WHERE id = $1", data.ID).Scan(&data.MType, &data.Delta, &data.Value, &data.Hash)
+	//log.Println(data)
+	if data.Delta == nil && data.Value == nil {
+		data.Delta = new(int64)
+		data.Value = new(float64)
+		err = errors.New("no data")
+		return data, err
 	}
-	log.Println(data)
-
 	return data, err
 
 }

@@ -2,7 +2,6 @@ package models
 
 import (
 	"fmt"
-	"log"
 )
 
 type Metrics struct {
@@ -25,7 +24,7 @@ func (m *Metrics) StringData() string {
 }
 
 func (m *Metrics) formatString() string {
-	log.Println(*m)
+	//log.Println(*m)
 	switch m.MType {
 	case "gauge":
 		//log.Printf("gauge %f", *m.Value)
