@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"log"
 )
 
 type Metrics struct {
@@ -12,7 +13,7 @@ type Metrics struct {
 	Hash  string   `json:"hash,omitempty"`  // значение хеш-функции
 }
 
-func (m Metrics) StringData() string {
+func (m *Metrics) StringData() string {
 	/*	m.Hash = ""
 		j, err := json.Marshal(m)
 		if err != nil {
@@ -23,7 +24,8 @@ func (m Metrics) StringData() string {
 	return m.formatString()
 }
 
-func (m Metrics) formatString() string {
+func (m *Metrics) formatString() string {
+	log.Println(*m)
 	switch m.MType {
 	case "gauge":
 		//log.Printf("gauge %f", *m.Value)

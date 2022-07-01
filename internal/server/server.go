@@ -34,7 +34,7 @@ type Config struct {
 type Server struct {
 	cfg   Config
 	handl handlers.Handlers
-	srv   http.Server
+	srv   *http.Server
 	db    *database.Database
 }
 
@@ -94,7 +94,7 @@ func NewServer() Server {
 	cryptoService.InitCryptoService(cfg.KeyFileFlag)
 	handl := handlers.NewHandlers(repo, cryptoService)
 	serv.handl = handl
-	serv.srv = http.Server{}
+	serv.srv = &http.Server{}
 	return serv
 }
 

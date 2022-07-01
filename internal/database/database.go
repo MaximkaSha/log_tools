@@ -136,7 +136,17 @@ func (d Database) InsertMetric(m models.Metrics) error {
 }
 
 func (d Database) GetMetric(data models.Metrics) (models.Metrics, error) {
-	err := d.DB.QueryRow("SELECT * FROM log_data_2 WHERE id = $1", data.ID).Scan(&data.ID, &data.MType, &data.Delta, &data.Value, &data.Hash)
+	log.Println(data)
+	err := d.DB.QueryRow("SELECT mtype FROM log_data_2 WHERE id = $1", data.ID).Scan(&data.MType)
+	log.Println(data.MType)
+	switch data.MType {
+	case "counter":
+		err = d.DB.QueryRow("SELECT delta,hash FROM log_data_2 WHERE id = $1", data.ID).Scan(&data.Delta, &data.Hash)
+	case "gauge":
+		err = d.DB.QueryRow("SELECT value,hash FROM log_data_2 WHERE id = $1", data.ID).Scan(&data.Value, &data.Hash)
+	}
+	log.Println(data)
+
 	return data, err
 
 }
@@ -146,6 +156,7 @@ func (d Database) GetAll() []models.Metrics {
 	ctx, cancelfunc := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelfunc()
 	rows, err := d.DB.QueryContext(ctx, query)
+	rows.Err()
 	if err != nil {
 		log.Printf("Error %s when getting all  data", err)
 	}
