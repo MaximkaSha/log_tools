@@ -122,7 +122,7 @@ func (d Database) InsertMetric(m models.Metrics) error {
 	ON CONFLICT (id)
 	DO UPDATE SET
 	mtype = EXCLUDED.mtype,
-	delta = EXCLUDED.delta,
+	delta = EXCLUDED.delta + log_data_2.delta,
 	value = EXCLUDED.value,
 	hash = EXCLUDED.hash`
 	ctx, cancelfunc := context.WithTimeout(context.Background(), 5*time.Second)
