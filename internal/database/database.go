@@ -145,7 +145,7 @@ func (d Database) InsertMetric(m models.Metrics) error {
 }
 
 func (d Database) GetMetric(data models.Metrics) (models.Metrics, error) {
-	err := d.DB.QueryRow("SELECT * FROM log_data_2 WHERE id = $1", data.ID).Scan(&data.ID, &data.MType, data.Delta, data.Value, &data.Hash)
+	err := d.DB.QueryRow("SELECT * FROM log_data_2 WHERE id = $1", data.ID).Scan(&data.ID, &data.MType, &data.Delta, &data.Value, &data.Hash)
 	return data, err
 
 }
