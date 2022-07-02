@@ -189,12 +189,14 @@ func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Reques
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data models.MetricsDB
 		content, err := ioutil.ReadAll(r.Body)
-		log.Println(string(content))
+		//log.Println(string(content))
 		if err != nil {
 			log.Fatal(err)
 		}
 		err = json.Unmarshal(content, &data)
+		log.Println(err)
 		if err != nil {
+			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -208,7 +210,12 @@ func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Reques
 			}
 
 		}
-		obj.Repo.BatchInsert(data)
+		err = obj.Repo.BatchInsert(data)
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
 		//obj.Repo.SaveData(obj.SyncFile)
 		w.WriteHeader(http.StatusOK)
 		//jData, _ := json.Marshal(data)
