@@ -219,13 +219,47 @@ func (d Database) Restore(file string) {
 }
 
 func (d Database) PingDB() bool {
-	//log.Println("HERE")
-	//log.Println(d)
-	//log.Println(d.DB)
 	if k := d.DB.Ping(); k != nil {
-		log.Printf("error: %s", k)
-		//http.Error(w, "Cant connect to DB", http.StatusInternalServerError)
+		log.Println("cant ping DB!")
 		return false
 	}
 	return true
+}
+
+func (d Database) BatchInsert(dataModels []models.Metrics) error {
+	var query = `INSERT INTO log_data_2 (id, mtype, delta, value, hash)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (id)
+		DO UPDATE SET
+		mtype = EXCLUDED.mtype,
+		delta = EXCLUDED.delta + log_data_2.delta,
+		value = EXCLUDED.value,
+		hash = EXCLUDED.hash`
+	// шаг 1 — объявляем транзакцию
+	tx, err := d.DB.Begin()
+	if err != nil {
+		return err
+	}
+	// шаг 1.1 — если возникает ошибка, откатываем изменения
+	defer tx.Rollback()
+	ctx, cancelfunc := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelfunc()
+	// шаг 2 — готовим инструкцию
+
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return err
+	}
+	// шаг 2.1 — не забываем закрыть инструкцию, когда она больше не нужна
+	defer stmt.Close()
+
+	for _, v := range dataModels {
+		// шаг 3 — указываем, что каждое видео будет добавлено в транзакцию
+		if _, err = stmt.ExecContext(ctx, v.ID, v.MType, v.Delta, v.Value, v.Hash); err != nil {
+			return err
+		}
+	}
+	// шаг 4 — сохраняем изменения
+	return tx.Commit()
+
 }

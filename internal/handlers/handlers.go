@@ -182,3 +182,34 @@ func (obj *Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
+func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Header.Get("Content-Type") == "application/json" {
+		var data = []models.Metrics{}
+		decoder := json.NewDecoder(r.Body)
+		err := decoder.Decode(&data)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if obj.cryptoService.IsEnable {
+			for k := range data {
+				if !obj.cryptoService.CheckHash(data[k]) {
+					log.Println("Sing check fail!")
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+			}
+
+		}
+		obj.Repo.BatchInsert(data)
+		//obj.Repo.SaveData(obj.SyncFile)
+		w.WriteHeader(http.StatusOK)
+		jData, _ := json.Marshal(data)
+		w.Write(jData)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+	}
+
+}

@@ -43,4 +43,5 @@ type Storager interface {
 	SaveData(file string)
 	Restore(file string)
 	PingDB() bool
+	BatchInsert(dataModels []Metrics) error
 }

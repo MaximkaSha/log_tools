@@ -69,6 +69,7 @@ func (a *Agent) StartService() {
 		case <-tickerCollect.C:
 			a.CollectLogs()
 		case <-tickerSend.C:
+			a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
 			a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
 			a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
 		case <-sigc:
@@ -78,14 +79,13 @@ func (a *Agent) StartService() {
 	}
 }
 
-func (a Agent) SendLogsbyJSON(url string) error {
+func (a Agent) SendLogsbyJSONBatch(url string) error {
 	hasher := crypto.NewCryptoService()
 	hasher.InitCryptoService(a.cfg.KeyFile)
+	var allData = []models.Metrics{}
 	for i := range a.logDB {
 		var data = models.Metrics{}
 		data = a.logDB[i]
-		//log.Println(data)
-		//log.Println(hasher.IsServiceEnable())
 		if hasher.IsServiceEnable() {
 			_, err := hasher.Hash(&data)
 			if err != nil {
@@ -93,7 +93,31 @@ func (a Agent) SendLogsbyJSON(url string) error {
 				continue
 			}
 		}
-		//	log.Println(hasher.CheckHash(data))
+		allData = append(allData, data)
+	}
+	log.Println(allData)
+	jData, _ := json.Marshal(allData)
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
+	if err == nil {
+		resp.Body.Close()
+	}
+	log.Println("Sended logs by POST JSON Batch")
+	return nil
+}
+
+func (a Agent) SendLogsbyJSON(url string) error {
+	hasher := crypto.NewCryptoService()
+	hasher.InitCryptoService(a.cfg.KeyFile)
+	for i := range a.logDB {
+		var data = models.Metrics{}
+		data = a.logDB[i]
+		if hasher.IsServiceEnable() {
+			_, err := hasher.Hash(&data)
+			if err != nil {
+				log.Println("Hasher error!")
+				continue
+			}
+		}
 		//log.Println(data)
 		jData, _ := json.Marshal(data)
 
@@ -119,7 +143,6 @@ func (a Agent) getPostStrByIndex(i int, url string) string {
 func (a *Agent) SendLogsbyPost(sData string) error {
 	for i := range a.logDB {
 		//TODO: make config struct part of agent class
-		//	log.Println(a.getPostStrByIndex(i, sData))
 		if r, err := http.Post(a.getPostStrByIndex(i, sData), "text/plain", nil); err == nil {
 			r.Body.Close()
 		}

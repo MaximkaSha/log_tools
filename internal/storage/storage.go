@@ -125,6 +125,10 @@ func (r Repository) PingDB() bool {
 	return false
 }
 
+func (r Repository) BatchInsert(dataModels []models.Metrics) error {
+	return errors.New("not implemented for RAM storage")
+}
+
 func NewRepo() Repository {
 	return Repository{
 		JSONDB: []models.Metrics{},

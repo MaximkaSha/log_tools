@@ -137,6 +137,7 @@ func (s *Server) StartServe() {
 	mux.Get("/", s.handl.HandleGetHome)
 	mux.Get("/ping", s.handl.HandleGetPing)
 	mux.Post("/update/", s.handl.HandlePostJSONUpdate)
+	mux.Post("/updates/", s.handl.HandlePostJSONUpdates)
 	mux.Post("/value/", s.handl.HandlePostJSONValue)
 	s.srv.Addr = s.cfg.Server
 	s.srv.Handler = mux
