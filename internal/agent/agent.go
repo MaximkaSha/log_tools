@@ -70,8 +70,8 @@ func (a *Agent) StartService() {
 			a.CollectLogs()
 		case <-tickerSend.C:
 			a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
-			a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
-			a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
+			//a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
+			//a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
 		case <-sigc:
 			log.Println("Got quit signal.")
 			return
