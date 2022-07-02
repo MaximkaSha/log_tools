@@ -97,6 +97,8 @@ func (a Agent) SendLogsbyJSONBatch(url string) error {
 	}
 	//log.Println(allData)
 	jData, _ := json.Marshal(allData)
+	//var buf bytes.Buffer
+	//g := gzip.NewWriter(&buf)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 	if err == nil {
 		resp.Body.Close()

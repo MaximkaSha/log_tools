@@ -72,6 +72,8 @@ curl --header "Content-Type: application/json" --request POST --data "{\"id\":\"
 
 func (obj *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	log.Println(r.Header)
+	log.Println(r.Body)
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data = new(models.Metrics)
 		decoder := json.NewDecoder(r.Body)
@@ -184,10 +186,11 @@ func (obj *Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
 }
 
 func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request) {
-	var data []byte
-	r.Body.Read(data)
-	log.Println(string(data))
-	/*	//err := decoder.Decode(&data)
+	w.Header().Set("Content-Type", "application/json")
+	if r.Header.Get("Content-Type") == "application/json" {
+		var data = []models.Metrics{}
+		decoder := json.NewDecoder(r.Body)
+		err := decoder.Decode(&data)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -206,8 +209,9 @@ func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Reques
 		//obj.Repo.SaveData(obj.SyncFile)
 		w.WriteHeader(http.StatusOK)
 		jData, _ := json.Marshal(data)
-		w.Write(jData) */
-
-	//w.WriteHeader(http.StatusNotFound)
+		w.Write(jData)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+	}
 
 }
