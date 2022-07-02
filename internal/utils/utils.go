@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/binary"
+	"log"
 	"strconv"
 )
 
@@ -12,4 +15,13 @@ func CheckIfStringIsNumber(v string) bool {
 		return true
 	}
 	return false
+}
+
+func Float64ToByte(f float64) []byte {
+	var buf bytes.Buffer
+	err := binary.Write(&buf, binary.LittleEndian, f)
+	if err != nil {
+		log.Println("binary.Write failed:", err)
+	}
+	return buf.Bytes()
 }
