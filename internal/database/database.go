@@ -98,7 +98,7 @@ func (d Database) CreateTableIfNotExist() error {
 (
     id character varying(100) COLLATE pg_catalog."default" NOT NULL,
     mtype character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    delta integer,
+    delta bigint,
     value double precision,
     hash character varying COLLATE pg_catalog."default",
 	PRIMARY KEY (id)
