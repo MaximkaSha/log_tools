@@ -216,12 +216,18 @@ func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Reques
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		//obj.Repo.SaveData(obj.SyncFile)
+		commit := models.Metrics{}
+		a := obj.Repo.GetCurrentCommit()
+		commit.Value = &a
+		commit.ID = "RandomValue"
+		commit.MType = "gauge"
 		w.WriteHeader(http.StatusOK)
-		//jData, _ := json.Marshal(data)
-		//w.Write(jData)
+		jData, _ := json.Marshal(commit)
+		w.Write(jData)
+		return
 	} else {
 		w.WriteHeader(http.StatusNotFound)
+		return
 	}
 
 }
