@@ -186,7 +186,7 @@ func (obj *Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
 func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
-		var data = []models.Metrics{}
+		var data []models.Metrics
 		decoder := json.NewDecoder(r.Body)
 		err := decoder.Decode(&data)
 		if err != nil {
