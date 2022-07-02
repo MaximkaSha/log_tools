@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
 )
 
@@ -20,17 +21,20 @@ type Config struct {
 	Server         string        `env:"ADDRESS" envDefault:"localhost:8080"`
 	ReportInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
 	PollInterval   time.Duration `env:"POLL_INTERVAL,required" envDefault:"2s"`
+	KeyFile        string        `env:"KEY" envDefault:"key.txt"`
 }
 
 type Agent struct {
 	logDB   []models.Metrics
 	counter int64
+	cfg     Config
 }
 
-func NewAgent() Agent {
+func NewAgent(cfg Config) Agent {
 	return Agent{
 		logDB:   []models.Metrics{},
 		counter: 0,
+		cfg:     cfg,
 	}
 }
 
@@ -45,9 +49,9 @@ func (a *Agent) AppendMetric(m models.Metrics) {
 	a.logDB = append(a.logDB, m)
 }
 
-func (a *Agent) StartService(cfg *Config) {
-	var pollInterval = cfg.PollInterval
-	var reportInterval = cfg.ReportInterval
+func (a *Agent) StartService() {
+	var pollInterval = a.cfg.PollInterval
+	var reportInterval = a.cfg.ReportInterval
 	//var logData = new(logData)
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
@@ -65,8 +69,9 @@ func (a *Agent) StartService(cfg *Config) {
 		case <-tickerCollect.C:
 			a.CollectLogs()
 		case <-tickerSend.C:
-			a.SendLogsbyPost("http://" + cfg.Server + "/update/")
-			a.SendLogsbyJSON("http://" + cfg.Server + "/update/")
+			a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
+			a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
+			a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
 		case <-sigc:
 			log.Println("Got quit signal.")
 			return
@@ -74,12 +79,47 @@ func (a *Agent) StartService(cfg *Config) {
 	}
 }
 
-func (a Agent) SendLogsbyJSON(url string) error {
+func (a Agent) SendLogsbyJSONBatch(url string) error {
+	hasher := crypto.NewCryptoService()
+	hasher.InitCryptoService(a.cfg.KeyFile)
+	var allData = []models.Metrics{}
 	for i := range a.logDB {
 		var data = models.Metrics{}
 		data = a.logDB[i]
+		if hasher.IsServiceEnable() {
+			_, err := hasher.Hash(&data)
+			if err != nil {
+				log.Println("Hasher error!")
+				continue
+			}
+		}
+		allData = append(allData, data)
+	}
+	jData, _ := json.Marshal(allData)
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
+	if err == nil {
+		resp.Body.Close()
+	}
+	log.Println("Sended logs by POST JSON Batch")
+	return nil
+}
+
+func (a Agent) SendLogsbyJSON(url string) error {
+	hasher := crypto.NewCryptoService()
+	hasher.InitCryptoService(a.cfg.KeyFile)
+	for i := range a.logDB {
+		var data = models.Metrics{}
+		data = a.logDB[i]
+		if hasher.IsServiceEnable() {
+			_, err := hasher.Hash(&data)
+			if err != nil {
+				log.Println("Hasher error!")
+				continue
+			}
+		}
+		//log.Println(data)
 		jData, _ := json.Marshal(data)
-		//	log.Println(url)
+
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 		if err == nil {
 			resp.Body.Close()
@@ -102,7 +142,6 @@ func (a Agent) getPostStrByIndex(i int, url string) string {
 func (a *Agent) SendLogsbyPost(sData string) error {
 	for i := range a.logDB {
 		//TODO: make config struct part of agent class
-		//	log.Println(a.getPostStrByIndex(i, sData))
 		if r, err := http.Post(a.getPostStrByIndex(i, sData), "text/plain", nil); err == nil {
 			r.Body.Close()
 		}

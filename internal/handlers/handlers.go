@@ -3,26 +3,34 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"strconv"
 
+	"github.com/MaximkaSha/log_tools/internal/crypto"
+	"github.com/MaximkaSha/log_tools/internal/database"
 	"github.com/MaximkaSha/log_tools/internal/models"
-	"github.com/MaximkaSha/log_tools/internal/storage"
+
+	//"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/go-chi/chi/v5"
 )
 
 type Handlers struct {
-	handlers *http.ServeMux
-	Repo     storage.Repository
-	SyncFile string
+	handlers      *http.ServeMux
+	Repo          models.Storager
+	SyncFile      string
+	cryptoService crypto.CryptoService
+	DB            *database.Database
 }
 
-func NewHandlers(repo storage.Repository) Handlers {
+func NewHandlers(repo models.Storager, cryptoService crypto.CryptoService) Handlers {
 	handl := http.NewServeMux()
 	return Handlers{
-		handlers: handl,
-		Repo:     repo,
-		SyncFile: "",
+		handlers:      handl,
+		Repo:          repo,
+		SyncFile:      "",
+		cryptoService: cryptoService,
 	}
 }
 
@@ -36,7 +44,22 @@ func (obj *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //sh
 		http.Error(w, "Type not found!", http.StatusNotImplemented)
 		return
 	}
-	result := obj.Repo.InsertData(typeVal, nameVal, valueVal)
+	var data models.Metrics
+	if obj.cryptoService.IsServiceEnable() {
+		data.ID = nameVal
+		data.MType = typeVal
+		switch data.MType {
+		case "gauge":
+			tmp, _ := strconv.ParseFloat(valueVal, 64)
+			data.Value = &tmp
+		case "counter":
+			tmp, _ := strconv.ParseInt(valueVal, 10, 64)
+			data.Delta = &tmp
+		}
+		obj.cryptoService.Hash(&data)
+	}
+
+	result := obj.Repo.InsertData(typeVal, nameVal, valueVal, data.Hash)
 	if result != 200 {
 		http.Error(w, "Bad value found!", result)
 		return
@@ -57,6 +80,13 @@ func (obj *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			return
+		}
+		if obj.cryptoService.IsEnable {
+			if !obj.cryptoService.CheckHash(*data) {
+				log.Println("Sing check fail!")
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 		}
 		obj.Repo.InsertMetric(*data)
 		//obj.Repo.SaveData(obj.SyncFile)
@@ -81,11 +111,25 @@ func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		if d, err := obj.Repo.GetMetric(*data); err == nil {
+			if obj.cryptoService.IsEnable {
+				_, err = obj.cryptoService.Hash(&d)
+				if err != nil {
+					log.Println("Hasher error!")
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			}
 			jData, _ := json.Marshal(d)
 			w.WriteHeader(http.StatusOK)
 			w.Write(jData)
 			return
 		} else {
+			_, err = obj.cryptoService.Hash(&d)
+			if err != nil {
+				log.Println("Hasher error!")
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 			jData, _ := json.Marshal(d)
 			w.WriteHeader(http.StatusNotFound)
 			w.Write(jData)
@@ -97,7 +141,7 @@ func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request)
 
 func (obj *Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	repo := obj.Repo.JSONDB
+	repo := obj.Repo.GetAll()
 	allData, _ := json.MarshalIndent(repo, "", "    ")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(allData))
@@ -127,6 +171,63 @@ func (obj *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(tmp))
 		}
 
+	}
+
+}
+
+func (obj *Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	if !obj.Repo.PingDB() {
+		http.Error(w, "Cant connect to DB", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Header.Get("Content-Type") == "application/json" {
+		var data models.MetricsDB
+		content, err := ioutil.ReadAll(r.Body)
+		//log.Println(string(content))
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = json.Unmarshal(content, &data)
+		//log.Println(err)
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if obj.cryptoService.IsEnable {
+			for k := range data {
+				if !obj.cryptoService.CheckHash(data[k]) {
+					log.Println("Sing check fail!")
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+			}
+
+		}
+		err = obj.Repo.BatchInsert(data)
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		commit := models.Metrics{}
+		a := obj.Repo.GetCurrentCommit()
+		commit.Value = &a
+		commit.ID = "RandomValue"
+		commit.MType = "gauge"
+		w.WriteHeader(http.StatusOK)
+		jData, _ := json.Marshal(commit)
+		w.Write(jData)
+		return
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		return
 	}
 
 }
