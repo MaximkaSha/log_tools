@@ -95,7 +95,7 @@ func (a Agent) SendLogsbyJSONBatch(url string) error {
 		}
 		allData = append(allData, data)
 	}
-	log.Println(allData)
+	//log.Println(allData)
 	jData, _ := json.Marshal(allData)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 	if err == nil {
