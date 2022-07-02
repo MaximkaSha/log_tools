@@ -137,9 +137,9 @@ func (d Database) InsertMetric(m models.Metrics) error {
 }
 
 func (d Database) GetMetric(data models.Metrics) (models.Metrics, error) {
-	log.Println(data)
+	//log.Println(data)
 	err := d.DB.QueryRow("SELECT mtype,delta,value,hash FROM log_data_2 WHERE id = $1", data.ID).Scan(&data.MType, &data.Delta, &data.Value, &data.Hash)
-	log.Println(data)
+	//log.Println(data)
 	if data.Delta == nil && data.Value == nil {
 		data.Delta = new(int64)
 		data.Value = new(float64)

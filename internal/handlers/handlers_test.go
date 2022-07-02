@@ -134,8 +134,11 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			// создаём новый Recorder
 			w := httptest.NewRecorder()
 			// определяем хендлер
-			repo := new(models.Storager)
-			handl := NewHandlers(*repo, crypto.NewCryptoService())
+			var repoInt models.Storager
+
+			repo := storage.NewRepo()
+			repoInt = &repo
+			handl := NewHandlers(repoInt, crypto.NewCryptoService())
 			mux := chi.NewRouter()
 			if tt.method == "POST" {
 				mux.Post("/update/{type}/{name}/{value}", handl.HandleUpdate)
