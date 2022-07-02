@@ -194,7 +194,7 @@ func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Reques
 			log.Fatal(err)
 		}
 		err = json.Unmarshal(content, &data)
-		log.Println(err)
+		//log.Println(err)
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
