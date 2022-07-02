@@ -46,4 +46,5 @@ type Storager interface {
 	Restore(file string)
 	PingDB() bool
 	BatchInsert(dataModels []Metrics) error
+	GetCurrentCommit() float64
 }

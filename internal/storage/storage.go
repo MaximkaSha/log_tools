@@ -129,6 +129,17 @@ func (r Repository) BatchInsert(dataModels []models.Metrics) error {
 	return errors.New("not implemented for RAM storage")
 }
 
+func (r Repository) GetCurrentCommit() float64 {
+	randVal := models.Metrics{
+		ID: "RandomValue",
+	}
+	randVal, err := r.GetMetric(randVal)
+	if err != nil {
+		return 0
+	}
+	return *randVal.Value
+}
+
 func NewRepo() Repository {
 	return Repository{
 		JSONDB: []models.Metrics{},

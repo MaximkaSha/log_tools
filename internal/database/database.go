@@ -230,6 +230,11 @@ func (d Database) BatchInsert(dataModels []models.Metrics) error {
 	if len(dataModels) == 0 {
 		return errors.New("empty batch")
 	}
+	for _, k := range dataModels {
+		if k.ID == "RandomValue" && *k.Value == d.GetCurrentCommit() {
+			return errors.New("already commited")
+		}
+	}
 	var query = `INSERT INTO log_data_2 (id, mtype, delta, value, hash)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (id)
@@ -265,4 +270,15 @@ func (d Database) BatchInsert(dataModels []models.Metrics) error {
 	// шаг 4 — сохраняем изменения
 	return tx.Commit()
 
+}
+
+func (d Database) GetCurrentCommit() float64 {
+	randVal := models.Metrics{
+		ID: "RandomValue",
+	}
+	randVal, err := d.GetMetric(randVal)
+	if err != nil {
+		return 0
+	}
+	return *randVal.Value
 }
