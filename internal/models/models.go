@@ -12,6 +12,8 @@ type Metrics struct {
 	Hash  string   `json:"hash,omitempty"`  // значение хеш-функции
 }
 
+type MetricsDB []Metrics
+
 func (m *Metrics) StringData() string {
 	/*	m.Hash = ""
 		j, err := json.Marshal(m)

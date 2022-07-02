@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
@@ -188,9 +189,13 @@ func (obj *Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
 func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
-		var data = []models.Metrics{}
-		decoder := json.NewDecoder(r.Body)
-		err := decoder.Decode(&data)
+		var data models.MetricsDB
+		content, err := ioutil.ReadAll(r.Body)
+		log.Println(string(content))
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = json.Unmarshal(content, &data)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			return
