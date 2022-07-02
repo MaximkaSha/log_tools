@@ -73,8 +73,6 @@ curl --header "Content-Type: application/json" --request POST --data "{\"id\":\"
 
 func (obj *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	log.Println(r.Header)
-	log.Println(r.Body)
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data = new(models.Metrics)
 		decoder := json.NewDecoder(r.Body)
@@ -213,8 +211,8 @@ func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Reques
 		obj.Repo.BatchInsert(data)
 		//obj.Repo.SaveData(obj.SyncFile)
 		w.WriteHeader(http.StatusOK)
-		jData, _ := json.Marshal(data)
-		w.Write(jData)
+		//jData, _ := json.Marshal(data)
+		//w.Write(jData)
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 	}

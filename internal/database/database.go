@@ -227,6 +227,9 @@ func (d Database) PingDB() bool {
 }
 
 func (d Database) BatchInsert(dataModels []models.Metrics) error {
+	if len(dataModels) == 0 {
+		return errors.New("empty batch")
+	}
 	var query = `INSERT INTO log_data_2 (id, mtype, delta, value, hash)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (id)
