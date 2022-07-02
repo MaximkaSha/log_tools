@@ -1,43 +1,42 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
+	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/storage"
-	//"github.com/MaximkaSha/log_tools/internal/service"
 	"github.com/go-chi/chi/v5"
 )
 
 type Handlers struct {
 	handlers *http.ServeMux
-	repo     storage.Repository
+	Repo     storage.Repository
+	SyncFile string
 }
 
 func NewHandlers(repo storage.Repository) Handlers {
 	handl := http.NewServeMux()
 	return Handlers{
 		handlers: handl,
-		repo:     repo,
+		Repo:     repo,
+		SyncFile: "",
 	}
 }
 
-func (obj Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //should be renamed to HandlePostUpdate
+func (obj *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //should be renamed to HandlePostUpdate
 
 	typeVal := chi.URLParam(r, "type")
 	nameVal := chi.URLParam(r, "name")
 	valueVal := chi.URLParam(r, "value")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST requests are allowed!", http.StatusMethodNotAllowed) //legacy, before chi refactoring
-		return                                                                        // should be deleted
-	}
-
 	if (typeVal != "gauge") && (typeVal != "counter") {
 		http.Error(w, "Type not found!", http.StatusNotImplemented)
 		return
 	}
-	result := obj.repo.InsertData(typeVal, nameVal, valueVal)
+	result := obj.Repo.InsertData(typeVal, nameVal, valueVal)
 	if result != 200 {
 		http.Error(w, "Bad value found!", result)
 		return
@@ -45,40 +44,89 @@ func (obj Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //sho
 	w.WriteHeader(http.StatusOK)
 }
 
-/* Сервер должен возвращать текущее значение запрашиваемой
-метрики в текстовом виде по запросу
-GET http://<АДРЕС_СЕРВЕРА>/value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ> (со статусом http.StatusOK).
-При попытке запроса неизвестной серверу метрики сервер должен возвращать http.StatusNotFound.
-По запросу
- GET http://<АДРЕС_СЕРВЕРА>/
- с ервер должен отдавать HTML-страничку со списком имён и значений всех известных ему на текущий момент метрик. */
+/*
+curl --header "Content-Type: application/json" --request POST --data "{\"id\":\"PollCount\",\"type\":\"gauge\",\"value\":10.0230}" http://localhost:8080/update/
+*/
 
-func (obj Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
-	repo := obj.repo.GetAll()
-	var allData = ""
-	for key, value := range repo {
-		s := fmt.Sprintf("%s = %s\n", key, value)
-		allData = allData + s
+func (obj *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Header.Get("Content-Type") == "application/json" {
+		var data = new(models.Metrics)
+		decoder := json.NewDecoder(r.Body)
+		err := decoder.Decode(&data)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		obj.Repo.InsertMetric(*data)
+		//obj.Repo.SaveData(obj.SyncFile)
+		w.WriteHeader(http.StatusOK)
+		jData, _ := json.Marshal(data)
+		w.Write(jData)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
 	}
+
+}
+
+func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Header.Get("Content-Type") == "application/json" {
+		var data = new(models.Metrics)
+		decoder := json.NewDecoder(r.Body)
+		err := decoder.Decode(&data)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			http.Error(w, "Data error!", http.StatusBadRequest)
+			return
+		}
+		if d, err := obj.Repo.GetMetric(*data); err == nil {
+			jData, _ := json.Marshal(d)
+			w.WriteHeader(http.StatusOK)
+			w.Write(jData)
+			return
+		} else {
+			jData, _ := json.Marshal(d)
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(jData)
+			return
+
+		}
+	}
+}
+
+func (obj *Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	repo := obj.Repo.JSONDB
+	allData, _ := json.MarshalIndent(repo, "", "    ")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(allData))
 }
 
-func (obj Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
-	//fmt.Println("get")
+func (obj *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
 	typeVal := chi.URLParam(r, "type")
 	nameVal := chi.URLParam(r, "name")
-
 	if (typeVal != "gauge") && (typeVal != "counter") {
 		http.Error(w, "Type not found!", http.StatusNotImplemented)
 		return
 	}
-	if valueVar, ok := obj.repo.GetByName(nameVal); !ok {
+	data := models.Metrics{}
+	data.ID = nameVal
+	data.MType = typeVal
+	if valueVar, ok := obj.Repo.GetMetric(data); ok != nil {
 		http.Error(w, "Name not found!", http.StatusNotFound)
 		return
 	} else {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(valueVar))
+		if valueVar.Value == nil {
+			tmp := fmt.Sprintf("%d", *valueVar.Delta)
+			w.Write([]byte(tmp))
+		} else {
+			tmp := strconv.FormatFloat(*valueVar.Value, 'f', -1, 64)
+			w.Write([]byte(tmp))
+		}
+
 	}
 
 }
