@@ -104,10 +104,10 @@ func (a Agent) SendLogsbyJSONBatch(url string) error {
 	}
 	jData, _ := json.Marshal(allData)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
-	if err != nil {
-		log.Println("error sending logs")
+	if err == nil {
+		defer resp.Body.Close()
 	}
-	defer resp.Body.Close()
+
 	log.Println("Sended logs by POST JSON Batch")
 	return nil
 }
@@ -130,7 +130,7 @@ func (a Agent) SendLogsbyJSON(url string) error {
 
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 		if err == nil {
-			resp.Body.Close()
+			defer resp.Body.Close()
 		}
 	}
 	log.Println("Sended logs by POST JSON")
