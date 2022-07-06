@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
@@ -141,8 +140,8 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			repoInt = &repo
 			handl := NewHandlers(repoInt, crypto.NewCryptoService())
 			mux := chi.NewRouter()
-			ctx, cancel := context.WithTimeout(nil, 5*time.Second)
-			defer cancel()
+			ctx := context.TODO()
+			//defer cancel()
 			if tt.method == "POST" {
 				mux.Post("/update/{type}/{name}/{value}", handl.HandleUpdate)
 			}
@@ -364,8 +363,8 @@ func TestHandlers_HandlePostJSONValue(t *testing.T) {
 			srv, handl := NewTestServer(&repo)
 			var model models.Metrics
 			json.Unmarshal([]byte(tt.want.body), &model)
-			ctx, cancel := context.WithTimeout(nil, 5*time.Second)
-			defer cancel()
+			ctx := context.TODO()
+			//	defer cancel()
 			handl.Repo.InsertMetric(ctx, model)
 			srv.ServeHTTP(w, request)
 			resp := w.Result()

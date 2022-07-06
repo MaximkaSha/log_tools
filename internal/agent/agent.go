@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
+	"github.com/caarlos0/env/v6"
 )
 
 type Config struct {
@@ -30,11 +32,11 @@ type Agent struct {
 	cfg     Config
 }
 
-func NewAgent(cfg Config) Agent {
+func NewAgent() Agent {
 	return Agent{
 		logDB:   []models.Metrics{},
 		counter: 0,
-		cfg:     cfg,
+		cfg:     parseCfg(),
 	}
 }
 
@@ -224,12 +226,39 @@ func (a *Agent) CollectLogs() {
 	//	log.Println(a.logDB)
 }
 
-/*
-Mallocs
-NumForcedGC
-NumGC
-StackInuse
-StackSys
-Sys
-TotalAlloc
-*/
+func parseCfg() Config {
+	var cfg Config
+	var cfgFlag Config
+	var envCfg = make(map[string]bool)
+	opts := env.Options{
+		OnSet: func(tag string, value interface{}, isDefault bool) {
+			envCfg[tag] = isDefault
+		},
+	}
+	// Сначала читаем ключи
+	flag.StringVar(&cfgFlag.Server, "a", "localhost:8080", "host:port (default localhost:8080)")
+	flag.DurationVar(&cfgFlag.ReportInterval, "r", time.Duration(10*time.Second), "report to server interval in seconds (default 10s)")
+	flag.DurationVar(&cfgFlag.PollInterval, "p", time.Duration(2*time.Second), "poll interval in seconds (default 2s)")
+	flag.StringVar(&cfgFlag.KeyFile, "k", "", "hmac key")
+	flag.Parse()
+	// Потом переписываем ключами из ENV, они имеют приоритет
+	// Это так не работает, т.к. есть значения по-умолчанию
+	err := env.Parse(&cfg, opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if flag := flag.Lookup("a"); (flag != nil) && envCfg["ADDRESS"] {
+		cfg.Server = cfgFlag.Server
+	}
+	if flag := flag.Lookup("r"); (flag != nil) && envCfg["REPORT_INTERVAL"] {
+		cfg.ReportInterval = cfgFlag.ReportInterval
+	}
+	if flag := flag.Lookup("p"); (flag != nil) && envCfg["POLL_INTERVAL"] {
+		cfg.PollInterval = cfgFlag.PollInterval
+	}
+	if flag := flag.Lookup("k"); (flag != nil) && envCfg["KEY"] {
+		cfg.KeyFile = cfgFlag.KeyFile
+	}
+	log.Println(cfg)
+	return cfg
+}
