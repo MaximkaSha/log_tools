@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,14 +14,6 @@ import (
 	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/utils"
 	_ "github.com/lib/pq"
-)
-
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "postgres"
-	password = "123456"
-	dbname   = "logs"
 )
 
 type Database struct {
@@ -36,21 +27,10 @@ func NewDatabase(con string) Database {
 	}
 }
 
-func NewDefaultDatabase() Database {
-	con := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	return Database{
-		ConString: con,
-	}
-}
-
-//fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-
 func (d *Database) InitDatabase() {
 	psqlconn := d.ConString
-	//log.Println(psqlconn)
 	var err error
 	d.DB, err = sql.Open("postgres", psqlconn)
-	//	defer d.DB.Close()
 	CheckError(err)
 	err = d.DB.Ping()
 	CheckError(err)
@@ -59,22 +39,6 @@ func (d *Database) InitDatabase() {
 	CheckError(err)
 	err = d.CreateTableIfNotExist()
 	CheckError(err)
-	/*var a = int64(15)
-	model := models.Metrics{
-		ID:    "PollCounter",
-		MType: "counter",
-		Delta: &a,
-	}
-	model2 := models.Metrics{}
-	err = d.AppendMetric(model)
-	CheckError(err)
-	model2, err = d.GetMetric(model)
-	CheckError(err)
-	log.Println(*model2.Delta)
-	var dd = []models.Metrics{}
-	dd, err = d.GetAll()
-	CheckError(err)
-	log.Println(dd) */
 
 }
 
@@ -114,9 +78,7 @@ func (d Database) CreateTableIfNotExist() error {
 
 }
 
-func (d Database) InsertMetric(m models.Metrics) error {
-	//log.Println(d.DB.Ping())
-	//log.Println("----------------------------------")
+func (d Database) InsertMetric(ctx context.Context, m models.Metrics) error {
 	var query = `INSERT INTO log_data_2 (id, mtype, delta, value, hash)
 	VALUES ($1, $2, $3, $4, $5)
 	ON CONFLICT (id)
@@ -125,9 +87,6 @@ func (d Database) InsertMetric(m models.Metrics) error {
 	delta = EXCLUDED.delta + log_data_2.delta,
 	value = EXCLUDED.value,
 	hash = EXCLUDED.hash`
-	ctx, cancelfunc := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelfunc()
-	//log.Println(d.DB.Ping())
 	_, err := d.DB.ExecContext(ctx, query, m.ID, m.MType, m.Delta, m.Value, m.Hash)
 	if err != nil {
 		log.Printf("Error %s when appending  data", err)
@@ -150,17 +109,14 @@ func (d Database) GetMetric(data models.Metrics) (models.Metrics, error) {
 
 }
 
-func (d Database) GetAll() []models.Metrics {
+func (d Database) GetAll(ctx context.Context) []models.Metrics {
 	var query = `SELECT * from log_data_2`
-	ctx, cancelfunc := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelfunc()
 	rows, err := d.DB.QueryContext(ctx, query)
 	rows.Err()
 	if err != nil {
 		log.Printf("Error %s when getting all  data", err)
 	}
 	defer rows.Close()
-	//println(rows)
 	data := []models.Metrics{}
 	for rows.Next() {
 		model := models.Metrics{}
@@ -168,16 +124,14 @@ func (d Database) GetAll() []models.Metrics {
 			log.Fatal(err)
 		}
 		data = append(data, model)
-		//log.Printf("this is something: %v\n", *model.Delta)
 	}
 	return data
 }
 
-func (d Database) InsertData(typeVar string, name string, value string, hash string) int {
+func (d Database) InsertData(ctx context.Context, typeVar string, name string, value string, hash string) int {
 	var model models.Metrics
 	model.ID = name
 	model.MType = typeVar
-	//	log.Println(value)
 	if typeVar == "gauge" {
 		if utils.CheckIfStringIsNumber(value) {
 			tmp, _ := strconv.ParseFloat(value, 64)
@@ -198,7 +152,7 @@ func (d Database) InsertData(typeVar string, name string, value string, hash str
 		}
 	}
 	model.Hash = hash
-	d.InsertMetric(model)
+	d.InsertMetric(ctx, model)
 	return http.StatusOK
 }
 
@@ -206,7 +160,9 @@ func (d Database) SaveData(file string) {
 	if file == "" {
 		return
 	}
-	jData, err := json.Marshal(d.GetAll())
+	ctx := context.TODO()
+	//	defer cancel()
+	jData, err := json.Marshal(d.GetAll(ctx))
 	if err != nil {
 		log.Panic(err)
 	}
@@ -214,7 +170,6 @@ func (d Database) SaveData(file string) {
 }
 
 func (d Database) Restore(file string) {
-	//log.Println(file)
 	log.Println("DB Connected, no need to restore from file")
 }
 
@@ -226,7 +181,7 @@ func (d Database) PingDB() bool {
 	return true
 }
 
-func (d Database) BatchInsert(dataModels []models.Metrics) error {
+func (d Database) BatchInsert(ctx context.Context, dataModels []models.Metrics) error {
 	if len(dataModels) == 0 {
 		return errors.New("empty batch")
 	}
@@ -250,8 +205,6 @@ func (d Database) BatchInsert(dataModels []models.Metrics) error {
 	}
 	// шаг 1.1 — если возникает ошибка, откатываем изменения
 	defer tx.Rollback()
-	ctx, cancelfunc := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelfunc()
 	// шаг 2 — готовим инструкцию
 
 	stmt, err := tx.PrepareContext(ctx, query)

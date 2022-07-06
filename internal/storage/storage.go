@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -18,7 +19,7 @@ type Repository struct {
 	JSONDB []models.Metrics
 }
 
-func (r *Repository) InsertMetric(m models.Metrics) error {
+func (r *Repository) InsertMetric(ctx context.Context, m models.Metrics) error {
 	r.AppendMetric(m)
 	return nil
 }
@@ -88,7 +89,7 @@ func (r *Repository) GetMetric(data models.Metrics) (models.Metrics, error) {
 
 }
 
-func (r *Repository) InsertData(typeVar string, name string, value string, hash string) int {
+func (r *Repository) InsertData(ctx context.Context, typeVar string, name string, value string, hash string) int {
 	var model models.Metrics
 	model.ID = name
 	model.MType = typeVar
@@ -113,11 +114,11 @@ func (r *Repository) InsertData(typeVar string, name string, value string, hash 
 		}
 	}
 	model.Hash = hash
-	r.InsertMetric(model)
+	r.InsertMetric(ctx, model)
 	return http.StatusOK
 }
 
-func (r Repository) GetAll() []models.Metrics {
+func (r Repository) GetAll(ctx context.Context) []models.Metrics {
 	return r.JSONDB
 }
 
@@ -125,7 +126,7 @@ func (r Repository) PingDB() bool {
 	return false
 }
 
-func (r Repository) BatchInsert(dataModels []models.Metrics) error {
+func (r Repository) BatchInsert(ctx context.Context, dataModels []models.Metrics) error {
 	return errors.New("not implemented for RAM storage")
 }
 
