@@ -69,14 +69,19 @@ func (a *Agent) StartService() {
 		case <-tickerCollect.C:
 			a.CollectLogs()
 		case <-tickerSend.C:
-			a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
-			a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
-			a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
+			go a.AgentSendWorker()
 		case <-sigc:
 			log.Println("Got quit signal.")
 			return
 		}
 	}
+}
+
+//Надо передавать контекст, что убивать рутину, если началась новая или убить по требыванию
+func (a Agent) AgentSendWorker() {
+	a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
+	a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
+	a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
 }
 
 func (a Agent) SendLogsbyJSONBatch(url string) error {
@@ -97,8 +102,9 @@ func (a Agent) SendLogsbyJSONBatch(url string) error {
 	}
 	jData, _ := json.Marshal(allData)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
-	if err == nil {
-		resp.Body.Close()
+	defer resp.Body.Close()
+	if err != nil {
+		log.Println("error sending logs")
 	}
 	log.Println("Sended logs by POST JSON Batch")
 	return nil
