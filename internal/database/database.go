@@ -160,8 +160,8 @@ func (d Database) SaveData(file string) {
 	if file == "" {
 		return
 	}
-	ctx, cancel := context.WithTimeout(nil, 5*time.Second)
-	defer cancel()
+	ctx := context.TODO()
+	//	defer cancel()
 	jData, err := json.Marshal(d.GetAll(ctx))
 	if err != nil {
 		log.Panic(err)
