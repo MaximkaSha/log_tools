@@ -17,6 +17,11 @@ import (
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/caarlos0/env/v6"
+
+	//"github.com/shirou/gopsutil/mem"
+	//"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 type Config struct {
@@ -69,7 +74,7 @@ func (a *Agent) StartService() {
 	for {
 		select {
 		case <-tickerCollect.C:
-			a.CollectLogs()
+			go a.CollectLogs()
 		case <-tickerSend.C:
 			go a.AgentSendWorker()
 		case <-sigc:
@@ -162,6 +167,16 @@ func (a *Agent) SendLogsbyPost(sData string) error {
 func (a *Agent) CollectLogs() {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
+	virtualMem, _ := mem.VirtualMemory()
+	CPU, _ := cpu.Percent(0, true)
+	for i, k := range CPU {
+		a.AppendMetric(models.NewMetric(("CPUutilization" + fmt.Sprint(i+1)), "gauge", nil, &k, ""))
+	}
+	var tmpTM = float64(virtualMem.Total)
+	var tmpFM = float64(virtualMem.Free)
+	a.AppendMetric(models.NewMetric("TotalMemory", "gauge", nil, &tmpTM, ""))
+	a.AppendMetric(models.NewMetric("TotalMemory", "gauge", nil, &tmpFM, ""))
+	//log.Println(a.logDB)
 	var tmpAlloc = float64(rtm.Alloc)
 	a.AppendMetric(models.Metrics{ID: "Alloc", MType: "gauge", Delta: nil, Value: &tmpAlloc})
 	var tmpBuckHashSys = float64(rtm.BuckHashSys)
@@ -221,7 +236,11 @@ func (a *Agent) CollectLogs() {
 	a.AppendMetric(models.Metrics{ID: "TotalAlloc", MType: "gauge", Delta: nil, Value: &tmpTotalAlloc})
 	var tmpMallocs = float64(rtm.Mallocs)
 	a.AppendMetric(models.Metrics{ID: "Mallocs", MType: "gauge", Delta: nil, Value: &tmpMallocs})
-
+	var tmpTotalMem = float64(virtualMem.Total)
+	a.AppendMetric(models.Metrics{ID: "TotalMemory", MType: "gauge", Delta: nil, Value: &tmpTotalMem})
+	var tmpFreeMem = float64(virtualMem.Free)
+	a.AppendMetric(models.Metrics{ID: "FreeMemory", MType: "gauge", Delta: nil, Value: &tmpFreeMem})
+	a.AppendMetric(models.Metrics{ID: "CPUutilization1", MType: "gauge", Delta: nil, Value: &CPU[0]})
 	log.Println("Collected logs")
 	//	log.Println(a.logDB)
 }
@@ -259,6 +278,6 @@ func parseCfg() Config {
 	if flag := flag.Lookup("k"); (flag != nil) && envCfg["KEY"] {
 		cfg.KeyFile = cfgFlag.KeyFile
 	}
-	log.Println(cfg)
+	//log.Println(cfg)
 	return cfg
 }
