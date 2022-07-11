@@ -16,6 +16,7 @@ import (
 
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
+	"github.com/MaximkaSha/log_tools/internal/utils"
 	"github.com/caarlos0/env/v6"
 
 	//"github.com/shirou/gopsutil/mem"
@@ -167,8 +168,10 @@ func (a *Agent) SendLogsbyPost(sData string) error {
 func (a *Agent) CollectLogs() {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
-	virtualMem, _ := mem.VirtualMemory()
-	CPU, _ := cpu.Percent(0, true)
+	virtualMem, err := mem.VirtualMemory()
+	utils.CheckError(err)
+	CPU, err := cpu.Percent(0, true)
+	utils.CheckError(err)
 	for i, k := range CPU {
 		a.AppendMetric(models.NewMetric(("CPUutilization" + fmt.Sprint(i+1)), "gauge", nil, &k, ""))
 	}
