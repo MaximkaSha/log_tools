@@ -25,3 +25,9 @@ func Float64ToByte(f float64) []byte {
 	}
 	return buf.Bytes()
 }
+
+func CheckError(err error) {
+	if err != nil {
+		log.Printf("error: %s", err)
+	}
+}
