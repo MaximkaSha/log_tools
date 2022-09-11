@@ -1,3 +1,5 @@
+//package interfaces describe projects interface.
+
 package interfaces
 
 type Storager interface {
