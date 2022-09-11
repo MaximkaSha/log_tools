@@ -492,8 +492,8 @@ func ExampleHandlers_HandleGetHome() {
 		log.Fatalln(err)
 	}
 	checkSum := md5.Sum(byteVar)
-	checkSum_Str := hex.EncodeToString(checkSum[:])
-	fmt.Println(checkSum_Str)
+	checkSumStr := hex.EncodeToString(checkSum[:])
+	fmt.Println(checkSumStr)
 	// Output:
 	// 9f588c81bb10904d7b5fb7dc7b8fc4fa
 
