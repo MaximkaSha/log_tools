@@ -1,18 +1,18 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/database"
 	"github.com/MaximkaSha/log_tools/internal/models"
-
-	//"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -34,8 +34,7 @@ func NewHandlers(repo models.Storager, cryptoService crypto.CryptoService) Handl
 	}
 }
 
-func (obj *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //should be renamed to HandlePostUpdate
-
+func (h *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //should be renamed to HandlePostUpdate
 	typeVal := chi.URLParam(r, "type")
 	nameVal := chi.URLParam(r, "name")
 	valueVal := chi.URLParam(r, "value")
@@ -45,7 +44,7 @@ func (obj *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //sh
 		return
 	}
 	var data models.Metrics
-	if obj.cryptoService.IsServiceEnable() {
+	if h.cryptoService.IsServiceEnable() {
 		data.ID = nameVal
 		data.MType = typeVal
 		switch data.MType {
@@ -56,10 +55,11 @@ func (obj *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //sh
 			tmp, _ := strconv.ParseInt(valueVal, 10, 64)
 			data.Delta = &tmp
 		}
-		obj.cryptoService.Hash(&data)
+		h.cryptoService.Hash(&data)
 	}
-
-	result := obj.Repo.InsertData(typeVal, nameVal, valueVal, data.Hash)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	result := h.Repo.InsertData(ctx, typeVal, nameVal, valueVal, data.Hash)
 	if result != 200 {
 		http.Error(w, "Bad value found!", result)
 		return
@@ -71,7 +71,7 @@ func (obj *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //sh
 curl --header "Content-Type: application/json" --request POST --data "{\"id\":\"PollCount\",\"type\":\"gauge\",\"value\":10.0230}" http://localhost:8080/update/
 */
 
-func (obj *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data = new(models.Metrics)
@@ -81,15 +81,17 @@ func (obj *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		if obj.cryptoService.IsEnable {
-			if !obj.cryptoService.CheckHash(*data) {
+		if h.cryptoService.IsEnable {
+			if !h.cryptoService.CheckHash(*data) {
 				log.Println("Sing check fail!")
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 		}
-		obj.Repo.InsertMetric(*data)
-		//obj.Repo.SaveData(obj.SyncFile)
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		h.Repo.InsertMetric(ctx, *data)
+		//h.Repo.SaveData(h.SyncFile)
 		w.WriteHeader(http.StatusOK)
 		jData, _ := json.Marshal(data)
 		w.Write(jData)
@@ -99,7 +101,7 @@ func (obj *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request
 
 }
 
-func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data = new(models.Metrics)
@@ -110,9 +112,9 @@ func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request)
 			http.Error(w, "Data error!", http.StatusBadRequest)
 			return
 		}
-		if d, err := obj.Repo.GetMetric(*data); err == nil {
-			if obj.cryptoService.IsEnable {
-				_, err = obj.cryptoService.Hash(&d)
+		if d, err := h.Repo.GetMetric(*data); err == nil {
+			if h.cryptoService.IsEnable {
+				_, err = h.cryptoService.Hash(&d)
 				if err != nil {
 					log.Println("Hasher error!")
 					w.WriteHeader(http.StatusInternalServerError)
@@ -124,7 +126,7 @@ func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request)
 			w.Write(jData)
 			return
 		} else {
-			_, err = obj.cryptoService.Hash(&d)
+			_, err = h.cryptoService.Hash(&d)
 			if err != nil {
 				log.Println("Hasher error!")
 				w.WriteHeader(http.StatusInternalServerError)
@@ -139,15 +141,17 @@ func (obj *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func (obj *Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	repo := obj.Repo.GetAll()
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	repo := h.Repo.GetAll(ctx)
 	allData, _ := json.MarshalIndent(repo, "", "    ")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(allData))
 }
 
-func (obj *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	typeVal := chi.URLParam(r, "type")
 	nameVal := chi.URLParam(r, "name")
@@ -158,7 +162,7 @@ func (obj *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
 	data := models.Metrics{}
 	data.ID = nameVal
 	data.MType = typeVal
-	if valueVar, ok := obj.Repo.GetMetric(data); ok != nil {
+	if valueVar, ok := h.Repo.GetMetric(data); ok != nil {
 		http.Error(w, "Name not found!", http.StatusNotFound)
 		return
 	} else {
@@ -175,16 +179,16 @@ func (obj *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (obj *Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	if !obj.Repo.PingDB() {
+	if !h.Repo.PingDB() {
 		http.Error(w, "Cant connect to DB", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
-func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data models.MetricsDB
@@ -200,9 +204,9 @@ func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Reques
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		if obj.cryptoService.IsEnable {
+		if h.cryptoService.IsEnable {
 			for k := range data {
-				if !obj.cryptoService.CheckHash(data[k]) {
+				if !h.cryptoService.CheckHash(data[k]) {
 					log.Println("Sing check fail!")
 					w.WriteHeader(http.StatusBadRequest)
 					return
@@ -210,17 +214,17 @@ func (obj *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Reques
 			}
 
 		}
-		err = obj.Repo.BatchInsert(data)
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		err = h.Repo.BatchInsert(ctx, data)
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		commit := models.Metrics{}
-		a := obj.Repo.GetCurrentCommit()
+		commit := models.NewMetric("RandomValue", "gauge", nil, nil, "")
+		a := h.Repo.GetCurrentCommit()
 		commit.Value = &a
-		commit.ID = "RandomValue"
-		commit.MType = "gauge"
 		w.WriteHeader(http.StatusOK)
 		jData, _ := json.Marshal(commit)
 		w.Write(jData)

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -36,15 +37,25 @@ func (m *Metrics) formatString() string {
 	}
 	return ""
 }
+func NewMetric(varID string, varType string, varDelta *int64, varValue *float64, varHash string) Metrics {
+	return Metrics{
+		ID:    varID,
+		MType: varType,
+		Delta: varDelta,
+		Value: varValue,
+		Hash:  varHash,
+	}
+
+}
 
 type Storager interface {
-	InsertMetric(m Metrics) error
+	InsertMetric(ctx context.Context, m Metrics) error
 	GetMetric(data Metrics) (Metrics, error)
-	InsertData(typeVar string, name string, value string, hash string) int
-	GetAll() []Metrics
+	InsertData(ctx context.Context, typeVar string, name string, value string, hash string) int
+	GetAll(ctx context.Context) []Metrics
 	SaveData(file string)
 	Restore(file string)
 	PingDB() bool
-	BatchInsert(dataModels []Metrics) error
+	BatchInsert(ctx context.Context, dataModels []Metrics) error
 	GetCurrentCommit() float64
 }

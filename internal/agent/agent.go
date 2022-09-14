@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -15,6 +16,13 @@ import (
 
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
+	"github.com/MaximkaSha/log_tools/internal/utils"
+	"github.com/caarlos0/env/v6"
+
+	//"github.com/shirou/gopsutil/mem"
+	//"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 type Config struct {
@@ -30,11 +38,11 @@ type Agent struct {
 	cfg     Config
 }
 
-func NewAgent(cfg Config) Agent {
+func NewAgent() Agent {
 	return Agent{
 		logDB:   []models.Metrics{},
 		counter: 0,
-		cfg:     cfg,
+		cfg:     parseCfg(),
 	}
 }
 
@@ -67,16 +75,21 @@ func (a *Agent) StartService() {
 	for {
 		select {
 		case <-tickerCollect.C:
-			a.CollectLogs()
+			go a.CollectLogs()
 		case <-tickerSend.C:
-			a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
-			a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
-			a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
+			go a.AgentSendWorker()
 		case <-sigc:
 			log.Println("Got quit signal.")
 			return
 		}
 	}
+}
+
+//Надо передавать контекст, что убивать рутину, если началась новая или убить по требыванию
+func (a Agent) AgentSendWorker() {
+	a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
+	a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
+	a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
 }
 
 func (a Agent) SendLogsbyJSONBatch(url string) error {
@@ -98,8 +111,9 @@ func (a Agent) SendLogsbyJSONBatch(url string) error {
 	jData, _ := json.Marshal(allData)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 	if err == nil {
-		resp.Body.Close()
+		defer resp.Body.Close()
 	}
+
 	log.Println("Sended logs by POST JSON Batch")
 	return nil
 }
@@ -122,7 +136,7 @@ func (a Agent) SendLogsbyJSON(url string) error {
 
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 		if err == nil {
-			resp.Body.Close()
+			defer resp.Body.Close()
 		}
 	}
 	log.Println("Sended logs by POST JSON")
@@ -154,6 +168,18 @@ func (a *Agent) SendLogsbyPost(sData string) error {
 func (a *Agent) CollectLogs() {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
+	virtualMem, err := mem.VirtualMemory()
+	utils.CheckError(err)
+	CPU, err := cpu.Percent(0, true)
+	utils.CheckError(err)
+	for i, k := range CPU {
+		a.AppendMetric(models.NewMetric(("CPUutilization" + fmt.Sprint(i+1)), "gauge", nil, &k, ""))
+	}
+	var tmpTM = float64(virtualMem.Total)
+	var tmpFM = float64(virtualMem.Free)
+	a.AppendMetric(models.NewMetric("TotalMemory", "gauge", nil, &tmpTM, ""))
+	a.AppendMetric(models.NewMetric("TotalMemory", "gauge", nil, &tmpFM, ""))
+	//log.Println(a.logDB)
 	var tmpAlloc = float64(rtm.Alloc)
 	a.AppendMetric(models.Metrics{ID: "Alloc", MType: "gauge", Delta: nil, Value: &tmpAlloc})
 	var tmpBuckHashSys = float64(rtm.BuckHashSys)
@@ -213,17 +239,48 @@ func (a *Agent) CollectLogs() {
 	a.AppendMetric(models.Metrics{ID: "TotalAlloc", MType: "gauge", Delta: nil, Value: &tmpTotalAlloc})
 	var tmpMallocs = float64(rtm.Mallocs)
 	a.AppendMetric(models.Metrics{ID: "Mallocs", MType: "gauge", Delta: nil, Value: &tmpMallocs})
-
+	var tmpTotalMem = float64(virtualMem.Total)
+	a.AppendMetric(models.Metrics{ID: "TotalMemory", MType: "gauge", Delta: nil, Value: &tmpTotalMem})
+	var tmpFreeMem = float64(virtualMem.Free)
+	a.AppendMetric(models.Metrics{ID: "FreeMemory", MType: "gauge", Delta: nil, Value: &tmpFreeMem})
+	a.AppendMetric(models.Metrics{ID: "CPUutilization1", MType: "gauge", Delta: nil, Value: &CPU[0]})
 	log.Println("Collected logs")
 	//	log.Println(a.logDB)
 }
 
-/*
-Mallocs
-NumForcedGC
-NumGC
-StackInuse
-StackSys
-Sys
-TotalAlloc
-*/
+func parseCfg() Config {
+	var cfg Config
+	var cfgFlag Config
+	var envCfg = make(map[string]bool)
+	opts := env.Options{
+		OnSet: func(tag string, value interface{}, isDefault bool) {
+			envCfg[tag] = isDefault
+		},
+	}
+	// Сначала читаем ключи
+	flag.StringVar(&cfgFlag.Server, "a", "localhost:8080", "host:port (default localhost:8080)")
+	flag.DurationVar(&cfgFlag.ReportInterval, "r", time.Duration(10*time.Second), "report to server interval in seconds (default 10s)")
+	flag.DurationVar(&cfgFlag.PollInterval, "p", time.Duration(2*time.Second), "poll interval in seconds (default 2s)")
+	flag.StringVar(&cfgFlag.KeyFile, "k", "", "hmac key")
+	flag.Parse()
+	// Потом переписываем ключами из ENV, они имеют приоритет
+	// Это так не работает, т.к. есть значения по-умолчанию
+	err := env.Parse(&cfg, opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if flag := flag.Lookup("a"); (flag != nil) && envCfg["ADDRESS"] {
+		cfg.Server = cfgFlag.Server
+	}
+	if flag := flag.Lookup("r"); (flag != nil) && envCfg["REPORT_INTERVAL"] {
+		cfg.ReportInterval = cfgFlag.ReportInterval
+	}
+	if flag := flag.Lookup("p"); (flag != nil) && envCfg["POLL_INTERVAL"] {
+		cfg.PollInterval = cfgFlag.PollInterval
+	}
+	if flag := flag.Lookup("k"); (flag != nil) && envCfg["KEY"] {
+		cfg.KeyFile = cfgFlag.KeyFile
+	}
+	//log.Println(cfg)
+	return cfg
+}
