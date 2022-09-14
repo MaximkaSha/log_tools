@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -13,24 +14,35 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
+	"github.com/MaximkaSha/log_tools/internal/utils"
+	"github.com/caarlos0/env/v6"
+
+	//"github.com/shirou/gopsutil/mem"
+	//"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 type Config struct {
 	Server         string        `env:"ADDRESS" envDefault:"localhost:8080"`
 	ReportInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
 	PollInterval   time.Duration `env:"POLL_INTERVAL,required" envDefault:"2s"`
+	KeyFile        string        `env:"KEY" envDefault:"key.txt"`
 }
 
 type Agent struct {
 	logDB   []models.Metrics
 	counter int64
+	cfg     Config
 }
 
 func NewAgent() Agent {
 	return Agent{
 		logDB:   []models.Metrics{},
 		counter: 0,
+		cfg:     parseCfg(),
 	}
 }
 
@@ -45,9 +57,9 @@ func (a *Agent) AppendMetric(m models.Metrics) {
 	a.logDB = append(a.logDB, m)
 }
 
-func (a *Agent) StartService(cfg *Config) {
-	var pollInterval = cfg.PollInterval
-	var reportInterval = cfg.ReportInterval
+func (a *Agent) StartService() {
+	var pollInterval = a.cfg.PollInterval
+	var reportInterval = a.cfg.ReportInterval
 	//var logData = new(logData)
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
@@ -63,10 +75,9 @@ func (a *Agent) StartService(cfg *Config) {
 	for {
 		select {
 		case <-tickerCollect.C:
-			a.CollectLogs()
+			go a.CollectLogs()
 		case <-tickerSend.C:
-			a.SendLogsbyPost("http://" + cfg.Server + "/update/")
-			a.SendLogsbyJSON("http://" + cfg.Server + "/update/")
+			go a.AgentSendWorker()
 		case <-sigc:
 			log.Println("Got quit signal.")
 			return
@@ -74,15 +85,58 @@ func (a *Agent) StartService(cfg *Config) {
 	}
 }
 
-func (a Agent) SendLogsbyJSON(url string) error {
+//Надо передавать контекст, что убивать рутину, если началась новая или убить по требыванию
+func (a Agent) AgentSendWorker() {
+	a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
+	a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
+	a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
+}
+
+func (a Agent) SendLogsbyJSONBatch(url string) error {
+	hasher := crypto.NewCryptoService()
+	hasher.InitCryptoService(a.cfg.KeyFile)
+	var allData = []models.Metrics{}
 	for i := range a.logDB {
 		var data = models.Metrics{}
 		data = a.logDB[i]
+		if hasher.IsServiceEnable() {
+			_, err := hasher.Hash(&data)
+			if err != nil {
+				log.Println("Hasher error!")
+				continue
+			}
+		}
+		allData = append(allData, data)
+	}
+	jData, _ := json.Marshal(allData)
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
+	if err == nil {
+		defer resp.Body.Close()
+	}
+
+	log.Println("Sended logs by POST JSON Batch")
+	return nil
+}
+
+func (a Agent) SendLogsbyJSON(url string) error {
+	hasher := crypto.NewCryptoService()
+	hasher.InitCryptoService(a.cfg.KeyFile)
+	for i := range a.logDB {
+		var data = models.Metrics{}
+		data = a.logDB[i]
+		if hasher.IsServiceEnable() {
+			_, err := hasher.Hash(&data)
+			if err != nil {
+				log.Println("Hasher error!")
+				continue
+			}
+		}
+		//log.Println(data)
 		jData, _ := json.Marshal(data)
-		//	log.Println(url)
+
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 		if err == nil {
-			resp.Body.Close()
+			defer resp.Body.Close()
 		}
 	}
 	log.Println("Sended logs by POST JSON")
@@ -102,7 +156,6 @@ func (a Agent) getPostStrByIndex(i int, url string) string {
 func (a *Agent) SendLogsbyPost(sData string) error {
 	for i := range a.logDB {
 		//TODO: make config struct part of agent class
-		//	log.Println(a.getPostStrByIndex(i, sData))
 		if r, err := http.Post(a.getPostStrByIndex(i, sData), "text/plain", nil); err == nil {
 			r.Body.Close()
 		}
@@ -115,6 +168,18 @@ func (a *Agent) SendLogsbyPost(sData string) error {
 func (a *Agent) CollectLogs() {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
+	virtualMem, err := mem.VirtualMemory()
+	utils.CheckError(err)
+	CPU, err := cpu.Percent(0, true)
+	utils.CheckError(err)
+	for i, k := range CPU {
+		a.AppendMetric(models.NewMetric(("CPUutilization" + fmt.Sprint(i+1)), "gauge", nil, &k, ""))
+	}
+	var tmpTM = float64(virtualMem.Total)
+	var tmpFM = float64(virtualMem.Free)
+	a.AppendMetric(models.NewMetric("TotalMemory", "gauge", nil, &tmpTM, ""))
+	a.AppendMetric(models.NewMetric("TotalMemory", "gauge", nil, &tmpFM, ""))
+	//log.Println(a.logDB)
 	var tmpAlloc = float64(rtm.Alloc)
 	a.AppendMetric(models.Metrics{ID: "Alloc", MType: "gauge", Delta: nil, Value: &tmpAlloc})
 	var tmpBuckHashSys = float64(rtm.BuckHashSys)
@@ -174,17 +239,48 @@ func (a *Agent) CollectLogs() {
 	a.AppendMetric(models.Metrics{ID: "TotalAlloc", MType: "gauge", Delta: nil, Value: &tmpTotalAlloc})
 	var tmpMallocs = float64(rtm.Mallocs)
 	a.AppendMetric(models.Metrics{ID: "Mallocs", MType: "gauge", Delta: nil, Value: &tmpMallocs})
-
+	var tmpTotalMem = float64(virtualMem.Total)
+	a.AppendMetric(models.Metrics{ID: "TotalMemory", MType: "gauge", Delta: nil, Value: &tmpTotalMem})
+	var tmpFreeMem = float64(virtualMem.Free)
+	a.AppendMetric(models.Metrics{ID: "FreeMemory", MType: "gauge", Delta: nil, Value: &tmpFreeMem})
+	a.AppendMetric(models.Metrics{ID: "CPUutilization1", MType: "gauge", Delta: nil, Value: &CPU[0]})
 	log.Println("Collected logs")
 	//	log.Println(a.logDB)
 }
 
-/*
-Mallocs
-NumForcedGC
-NumGC
-StackInuse
-StackSys
-Sys
-TotalAlloc
-*/
+func parseCfg() Config {
+	var cfg Config
+	var cfgFlag Config
+	var envCfg = make(map[string]bool)
+	opts := env.Options{
+		OnSet: func(tag string, value interface{}, isDefault bool) {
+			envCfg[tag] = isDefault
+		},
+	}
+	// Сначала читаем ключи
+	flag.StringVar(&cfgFlag.Server, "a", "localhost:8080", "host:port (default localhost:8080)")
+	flag.DurationVar(&cfgFlag.ReportInterval, "r", time.Duration(10*time.Second), "report to server interval in seconds (default 10s)")
+	flag.DurationVar(&cfgFlag.PollInterval, "p", time.Duration(2*time.Second), "poll interval in seconds (default 2s)")
+	flag.StringVar(&cfgFlag.KeyFile, "k", "", "hmac key")
+	flag.Parse()
+	// Потом переписываем ключами из ENV, они имеют приоритет
+	// Это так не работает, т.к. есть значения по-умолчанию
+	err := env.Parse(&cfg, opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if flag := flag.Lookup("a"); (flag != nil) && envCfg["ADDRESS"] {
+		cfg.Server = cfgFlag.Server
+	}
+	if flag := flag.Lookup("r"); (flag != nil) && envCfg["REPORT_INTERVAL"] {
+		cfg.ReportInterval = cfgFlag.ReportInterval
+	}
+	if flag := flag.Lookup("p"); (flag != nil) && envCfg["POLL_INTERVAL"] {
+		cfg.PollInterval = cfgFlag.PollInterval
+	}
+	if flag := flag.Lookup("k"); (flag != nil) && envCfg["KEY"] {
+		cfg.KeyFile = cfgFlag.KeyFile
+	}
+	//log.Println(cfg)
+	return cfg
+}

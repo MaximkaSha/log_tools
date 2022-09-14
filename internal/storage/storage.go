@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -18,7 +19,7 @@ type Repository struct {
 	JSONDB []models.Metrics
 }
 
-func (r *Repository) InsertMetric(m models.Metrics) error {
+func (r *Repository) InsertMetric(ctx context.Context, m models.Metrics) error {
 	r.AppendMetric(m)
 	return nil
 }
@@ -26,13 +27,12 @@ func (r *Repository) InsertMetric(m models.Metrics) error {
 func (r *Repository) AppendMetric(m models.Metrics) {
 	for i := range r.JSONDB {
 		if r.JSONDB[i].ID == m.ID {
-			//	log.Println(r.JSONDB[i])
-			//	log.Println(m)
 			if m.Delta != nil {
 				newDelta := *(r.JSONDB[i].Delta) + *(m.Delta)
 				r.JSONDB[i].Delta = &newDelta
 			}
 			r.JSONDB[i].Value = m.Value
+			r.JSONDB[i].Hash = m.Hash
 			return
 		}
 	}
@@ -52,6 +52,7 @@ func (r *Repository) SaveData(file string) {
 }
 
 func (r *Repository) Restore(file string) {
+	log.Println(file)
 	if _, err := os.Stat(file); err != nil {
 		log.Println("Restore file not found")
 		return
@@ -80,7 +81,6 @@ func (r *Repository) GetMetric(data models.Metrics) (models.Metrics, error) {
 			return data, nil
 		}
 	}
-	//log.Println("here")
 	var intVal = new(int64)
 	floatVal := 0.0
 	data.Delta = intVal
@@ -89,7 +89,7 @@ func (r *Repository) GetMetric(data models.Metrics) (models.Metrics, error) {
 
 }
 
-func (r *Repository) InsertData(typeVar string, name string, value string) int {
+func (r *Repository) InsertData(ctx context.Context, typeVar string, name string, value string, hash string) int {
 	var model models.Metrics
 	model.ID = name
 	model.MType = typeVar
@@ -113,45 +113,36 @@ func (r *Repository) InsertData(typeVar string, name string, value string) int {
 			return http.StatusBadRequest
 		}
 	}
-	r.InsertMetric(model)
+	model.Hash = hash
+	r.InsertMetric(ctx, model)
 	return http.StatusOK
+}
+
+func (r Repository) GetAll(ctx context.Context) []models.Metrics {
+	return r.JSONDB
+}
+
+func (r Repository) PingDB() bool {
+	return false
+}
+
+func (r Repository) BatchInsert(ctx context.Context, dataModels []models.Metrics) error {
+	return errors.New("not implemented for RAM storage")
+}
+
+func (r Repository) GetCurrentCommit() float64 {
+	randVal := models.Metrics{
+		ID: "RandomValue",
+	}
+	randVal, err := r.GetMetric(randVal)
+	if err != nil {
+		return 0
+	}
+	return *randVal.Value
 }
 
 func NewRepo() Repository {
 	return Repository{
 		JSONDB: []models.Metrics{},
-		//	db: make(map[string]string),
 	}
 }
-
-/*
-func (r Repository) GetAll() map[string]string {
-	return r.db
-}
-func (r Repository) GetByName(name string) (string, bool) {
-	if value, ok := r.db[name]; ok {
-		return value, true
-	}
-	return "", false
-}
-
-func (r Repository) insertGouge(name, value string) error {
-	if _, err := strconv.ParseFloat(value, 64); err == nil {
-		r.db[name] = value
-		return nil
-	}
-	return errors.New("not float")
-}
-
-func (r Repository) insertCount(name, value string) error {
-	if oldVal, ok := r.db[name]; ok {
-		oldInt, _ := strconv.ParseInt(oldVal, 10, 64)
-		newInt, _ := strconv.ParseInt(value, 10, 64)
-		r.db[name] = fmt.Sprint(newInt + oldInt)
-		return nil
-	} else if _, err := strconv.ParseInt(value, 10, 64); err == nil {
-		r.db[name] = value
-		return nil
-	}
-	return errors.New("not int")
-} */

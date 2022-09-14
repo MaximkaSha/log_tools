@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/go-chi/chi/v5"
@@ -133,19 +135,23 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			// создаём новый Recorder
 			w := httptest.NewRecorder()
 			// определяем хендлер
+			var repoInt models.Storager
 			repo := storage.NewRepo()
-			handl := NewHandlers(repo)
+			repoInt = &repo
+			handl := NewHandlers(repoInt, crypto.NewCryptoService())
 			mux := chi.NewRouter()
+			ctx := context.TODO()
+			//defer cancel()
 			if tt.method == "POST" {
 				mux.Post("/update/{type}/{name}/{value}", handl.HandleUpdate)
 			}
 			if tt.method == "GET" {
-				handl.Repo.InsertData("gauge", "TestCount", "100.00")
+				handl.Repo.InsertData(ctx, "gauge", "TestCount", "100.00", "123")
 				mux.Get("/value/{type}/{name}", handl.HandleGetUpdate)
 			}
 			if tt.method == "home" {
 
-				handl.Repo.InsertData("gauge", "TestCount", "100.00")
+				handl.Repo.InsertData(ctx, "gauge", "TestCount", "100.00", "123")
 				mux.Get("/", handl.HandleGetHome)
 			}
 			// запускаем сервер
@@ -357,7 +363,9 @@ func TestHandlers_HandlePostJSONValue(t *testing.T) {
 			srv, handl := NewTestServer(&repo)
 			var model models.Metrics
 			json.Unmarshal([]byte(tt.want.body), &model)
-			handl.Repo.InsertMetric(model)
+			ctx := context.TODO()
+			//	defer cancel()
+			handl.Repo.InsertMetric(ctx, model)
 			srv.ServeHTTP(w, request)
 			resp := w.Result()
 			respBody, err := ioutil.ReadAll(resp.Body)
@@ -376,8 +384,8 @@ func TestHandlers_HandlePostJSONValue(t *testing.T) {
 	}
 }
 
-func NewTestServer(repo *storage.Repository) (*chi.Mux, *Handlers) {
-	handl := NewHandlers(*repo)
+func NewTestServer(repo models.Storager) (*chi.Mux, *Handlers) {
+	handl := NewHandlers(repo, crypto.NewCryptoService())
 	mux := chi.NewRouter()
 	mux.Post("/update/", handl.HandlePostJSONUpdate)
 	mux.Post("/value/", handl.HandlePostJSONValue)
