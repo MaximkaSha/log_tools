@@ -1,9 +1,15 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -350,13 +356,47 @@ func TestHandlers_HandlePostJSONValue(t *testing.T) {
 			data:        `{"id":"Alloc","type":"gauge"}`,
 			contentType: "application/json",
 		},
+		{
+			name: "positive json #2",
+			want: want{
+				code:        200,
+				contentType: "application/json",
+				body:        `{"id":"PollCounter","type":"counter","value":0,"delta":100}`,
+			},
+			url:         "/value/",
+			method:      "POST",
+			data:        `{"id":"PollCounter","type":"counter"}`,
+			contentType: "application/json",
+		},
+		{
+			name: "positive json #3",
+			want: want{
+				code:        200,
+				contentType: "application/json",
+				body:        `{"id":"Alloc","type":"gauge"}`,
+			},
+			url:         "/value/",
+			method:      "POST",
+			data:        `{"id":"Alloc","type":"gauge"}`,
+			contentType: "application/json",
+		},
+		{
+			name: "negative",
+			want: want{
+				code:        400,
+				contentType: "text/plain; charset=utf-8",
+				body:        `{"id":"Alloc","type":"gauge"}`,
+			},
+			url:         "/value/",
+			method:      "GET",
+			data:        ``,
+			contentType: "application/json",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := storage.NewRepo()
 			var request = new(http.Request)
-			//data := strings.NewReader(tt.data)
-			//data, _ := json.Marshal(tt.data)
 			request = httptest.NewRequest(http.MethodPost, tt.url, strings.NewReader(tt.data))
 			request.Header.Add("Content-Type", tt.contentType)
 			w := httptest.NewRecorder()
@@ -364,7 +404,6 @@ func TestHandlers_HandlePostJSONValue(t *testing.T) {
 			var model models.Metrics
 			json.Unmarshal([]byte(tt.want.body), &model)
 			ctx := context.TODO()
-			//	defer cancel()
 			handl.Repo.InsertMetric(ctx, model)
 			srv.ServeHTTP(w, request)
 			resp := w.Result()
@@ -373,7 +412,6 @@ func TestHandlers_HandlePostJSONValue(t *testing.T) {
 			if err != nil {
 				t.Fail()
 			}
-
 			assert.Equal(t, tt.want.code, resp.StatusCode)
 			assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-type"))
 			if tt.data != `` {
@@ -384,11 +422,124 @@ func TestHandlers_HandlePostJSONValue(t *testing.T) {
 	}
 }
 
+func ExampleHandlers_HandleUpdate() {
+	repo := storage.NewRepo()
+	_, handl := NewTestServer(&repo)
+	postData := httptest.NewRequest(http.MethodPost, "/update/counter/PollCounter/10", nil)
+	getData := httptest.NewRequest(http.MethodGet, "/value/counter/PollCounter", nil)
+	w := httptest.NewRecorder()
+	mux := chi.NewRouter()
+	ctx := context.TODO()
+	mux.Post("/update/{type}/{name}/{value}", handl.HandleUpdate)
+	handl.Repo.InsertData(ctx, "counter", "PollCounter", "0.0", "10")
+	mux.Get("/value/{type}/{name}", handl.HandleGetUpdate)
+	mux.ServeHTTP(w, postData)
+	mux.ServeHTTP(w, getData)
+	resp := w.Result()
+	defer resp.Body.Close()
+	byteVar, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(string(byteVar))
+	// Output:
+	// 10
+}
+
+func ExampleHandlers_HandlePostJSONUpdate() {
+	repo := storage.NewRepo()
+	_, handl := NewTestServer(&repo)
+	var delta int64 = 10
+	data := &models.Metrics{
+		ID:    "PollCounter",
+		MType: "counter",
+		Delta: &delta,
+	}
+	jData, _ := json.Marshal(data)
+	postData := httptest.NewRequest(http.MethodPost, "/update/", bytes.NewBuffer(jData))
+	jData, _ = json.Marshal(data)
+	getData := httptest.NewRequest(http.MethodPost, "/value/", bytes.NewBuffer(jData))
+	postData.Header.Set("Content-Type", "application/json")
+	getData.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	mux := chi.NewRouter()
+	mux.Post("/update/", handl.HandlePostJSONUpdate)
+	mux.Post("/value/", handl.HandlePostJSONValue)
+	mux.ServeHTTP(w, postData)
+	resp := w.Result()
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println("", string(body))
+	// Output:
+	// {"id":"PollCounter","type":"counter","delta":10}
+}
+
+func ExampleHandlers_HandleGetHome() {
+	repo := storage.NewRepo()
+	_, handl := NewTestServer(&repo)
+	getData := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	mux := chi.NewRouter()
+	ctx := context.TODO()
+	handl.Repo.InsertData(ctx, "counter", "PollCounter", "0.0", "10")
+	handl.Repo.InsertData(ctx, "gauge", "RamMem", "100.10", "0")
+	mux.Get("/", handl.HandleGetHome)
+	mux.ServeHTTP(w, getData)
+	resp := w.Result()
+	defer resp.Body.Close()
+	byteVar, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	checkSum := md5.Sum(byteVar)
+	checkSumStr := hex.EncodeToString(checkSum[:])
+	fmt.Println(checkSumStr)
+	// Output:
+	// 9f588c81bb10904d7b5fb7dc7b8fc4fa
+
+}
+func ExampleHandlers_HandleGetPing() {
+	repo := storage.NewRepo()
+	_, handl := NewTestServer(&repo)
+	getData := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	w := httptest.NewRecorder()
+	mux := chi.NewRouter()
+	mux.Get("/ping", handl.HandleGetUpdate)
+	mux.ServeHTTP(w, getData)
+	resp := w.Result()
+	defer resp.Body.Close()
+	fmt.Println(resp.StatusCode)
+	// Output:
+	// 501
+
+}
+
+func ExampleHandlers_HandlePostJSONUpdates() {
+	repo := storage.NewRepo()
+	_, handl := NewTestServer(&repo)
+	ctx := context.TODO()
+	handl.Repo.InsertData(ctx, "counter", "PollCounter", "0.0", "10")
+	handl.Repo.InsertData(ctx, "gauge", "RamMem", "100.10", "0")
+	allData := handl.Repo.GetAll(ctx)
+	jData, _ := json.Marshal(allData)
+	getData := httptest.NewRequest(http.MethodPost, "/updates/", bytes.NewBuffer(jData))
+	w := httptest.NewRecorder()
+	mux := chi.NewRouter()
+	mux.Post("/updates/", handl.HandleGetUpdate)
+	mux.ServeHTTP(w, getData)
+	resp := w.Result()
+	defer resp.Body.Close()
+	fmt.Println(resp.StatusCode)
+	// Output:
+	// 501
+}
+
 func NewTestServer(repo models.Storager) (*chi.Mux, *Handlers) {
 	handl := NewHandlers(repo, crypto.NewCryptoService())
 	mux := chi.NewRouter()
 	mux.Post("/update/", handl.HandlePostJSONUpdate)
 	mux.Post("/value/", handl.HandlePostJSONValue)
+	mux.Get("/ping", handl.HandleGetPing)
 
 	return mux, &handl
 

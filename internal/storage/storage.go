@@ -1,3 +1,4 @@
+//package storage provide in-memory storage for app.
 package storage
 
 import (
@@ -14,16 +15,21 @@ import (
 	"github.com/MaximkaSha/log_tools/internal/utils"
 )
 
+//Repository - in memory storage.
 type Repository struct {
-	//	db     map[string]string
+	//JSONDB - array of models.Metrics
 	JSONDB []models.Metrics
 }
 
+//InsertMetrics - add models.Metrics to storage.
 func (r *Repository) InsertMetric(ctx context.Context, m models.Metrics) error {
 	r.AppendMetric(m)
 	return nil
 }
 
+//AppendMetric - add models.Metrics to storage.
+//
+//DEPRICATED: use InsertMetric.
 func (r *Repository) AppendMetric(m models.Metrics) {
 	for i := range r.JSONDB {
 		if r.JSONDB[i].ID == m.ID {
@@ -40,6 +46,7 @@ func (r *Repository) AppendMetric(m models.Metrics) {
 	r.JSONDB = append(r.JSONDB, m)
 }
 
+//SaveData - save data from in-memory storage to file.
 func (r *Repository) SaveData(file string) {
 	if file == "" {
 		return
@@ -51,6 +58,7 @@ func (r *Repository) SaveData(file string) {
 	_ = ioutil.WriteFile(file, jData, 0644)
 }
 
+//Restore - restore data from file to in-memory storage.
 func (r *Repository) Restore(file string) {
 	log.Println(file)
 	if _, err := os.Stat(file); err != nil {
@@ -72,6 +80,7 @@ func (r *Repository) Restore(file string) {
 
 }
 
+//GetMetric - get models.Metrics from storage.
 func (r *Repository) GetMetric(data models.Metrics) (models.Metrics, error) {
 	for i := range r.JSONDB {
 		//log.Printf("db: %s , data:%s", r.JSONDB[i].ID, data.ID)
@@ -89,6 +98,7 @@ func (r *Repository) GetMetric(data models.Metrics) (models.Metrics, error) {
 
 }
 
+//InsertData - save raw data (models.Metrics data) to storage.
 func (r *Repository) InsertData(ctx context.Context, typeVar string, name string, value string, hash string) int {
 	var model models.Metrics
 	model.ID = name
@@ -118,18 +128,23 @@ func (r *Repository) InsertData(ctx context.Context, typeVar string, name string
 	return http.StatusOK
 }
 
+//GetAll - get all []models.Metrics from storage.
 func (r Repository) GetAll(ctx context.Context) []models.Metrics {
 	return r.JSONDB
 }
 
+//PingDB - get current status of DB.
+//Always false (we are not using DB).
 func (r Repository) PingDB() bool {
 	return false
 }
 
+//BatchInsert - not implemented.
 func (r Repository) BatchInsert(ctx context.Context, dataModels []models.Metrics) error {
 	return errors.New("not implemented for RAM storage")
 }
 
+//GetCurrentCommit - return randVal from storage.
 func (r Repository) GetCurrentCommit() float64 {
 	randVal := models.Metrics{
 		ID: "RandomValue",
@@ -141,6 +156,7 @@ func (r Repository) GetCurrentCommit() float64 {
 	return *randVal.Value
 }
 
+//NewRepo - Repository constructor.
 func NewRepo() Repository {
 	return Repository{
 		JSONDB: []models.Metrics{},

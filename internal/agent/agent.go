@@ -25,19 +25,27 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
+//Config structure is agent configiguration.
 type Config struct {
-	Server         string        `env:"ADDRESS" envDefault:"localhost:8080"`
+	//Server - address and port of remote server.
+	Server string `env:"ADDRESS" envDefault:"localhost:8080"`
+	//ReportInterval - interval of log reporting.
 	ReportInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
-	PollInterval   time.Duration `env:"POLL_INTERVAL,required" envDefault:"2s"`
-	KeyFile        string        `env:"KEY" envDefault:"key.txt"`
+	//PollInterval - interval of log collecting.
+	PollInterval time.Duration `env:"POLL_INTERVAL,required" envDefault:"2s"`
+	//KeyFile - string which contains key to MAC.
+	//BUG(MAX): Again missleading naming. This NOT a path to KEY. It is string which contains bytes to HMAC.
+	KeyFile string `env:"KEY" envDefault:"key.txt"`
 }
 
+//Agent collects runtime metrics. Main module of agent.
 type Agent struct {
 	logDB   []models.Metrics
 	counter int64
 	cfg     Config
 }
 
+//NewAgent - Agent constructor.
 func NewAgent() Agent {
 	return Agent{
 		logDB:   []models.Metrics{},
@@ -46,6 +54,7 @@ func NewAgent() Agent {
 	}
 }
 
+//AppendMetric - add given models.Metrics to storage.
 func (a *Agent) AppendMetric(m models.Metrics) {
 	for i := range a.logDB {
 		if a.logDB[i].ID == m.ID {
@@ -57,6 +66,7 @@ func (a *Agent) AppendMetric(m models.Metrics) {
 	a.logDB = append(a.logDB, m)
 }
 
+//StartService - main function.
 func (a *Agent) StartService() {
 	var pollInterval = a.cfg.PollInterval
 	var reportInterval = a.cfg.ReportInterval
@@ -85,13 +95,14 @@ func (a *Agent) StartService() {
 	}
 }
 
-//Надо передавать контекст, что убивать рутину, если началась новая или убить по требыванию
+//AgentSendWorker - send all collected data by POST,JSON and batch JSON to remote server.
 func (a Agent) AgentSendWorker() {
 	a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
 	a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
 	a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
 }
 
+//SendLogsbyJSONBatch - send logs to remote server by JSON batch (fastest way).
 func (a Agent) SendLogsbyJSONBatch(url string) error {
 	hasher := crypto.NewCryptoService()
 	hasher.InitCryptoService(a.cfg.KeyFile)
@@ -118,6 +129,7 @@ func (a Agent) SendLogsbyJSONBatch(url string) error {
 	return nil
 }
 
+//SendLogsbyJSON - send logs to remote server by JSON one by one.
 func (a Agent) SendLogsbyJSON(url string) error {
 	hasher := crypto.NewCryptoService()
 	hasher.InitCryptoService(a.cfg.KeyFile)
@@ -153,9 +165,9 @@ func (a Agent) getPostStrByIndex(i int, url string) string {
 	return "type unknown"
 }
 
+//SendLogsbyPost - send logs to remote server one by one as POST request.
 func (a *Agent) SendLogsbyPost(sData string) error {
 	for i := range a.logDB {
-		//TODO: make config struct part of agent class
 		if r, err := http.Post(a.getPostStrByIndex(i, sData), "text/plain", nil); err == nil {
 			r.Body.Close()
 		}
@@ -165,6 +177,7 @@ func (a *Agent) SendLogsbyPost(sData string) error {
 	return nil
 }
 
+//CollectLogs - collect runtime metrics and save it to storage.
 func (a *Agent) CollectLogs() {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
