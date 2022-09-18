@@ -1,4 +1,4 @@
-//Database package provide Postgres databse functions.
+// Database package provide Postgres databse functions.
 package database
 
 import (
@@ -17,22 +17,20 @@ import (
 	_ "github.com/lib/pq"
 )
 
-//Database provides Postgres functions.
+// Database provides Postgres functions.
 type Database struct {
-	//ConString - DSN.
+	DB        *sql.DB
 	ConString string
-	//DB - pointer to sql.DB object.
-	DB *sql.DB
 }
 
-//NewDatabase - Database cinstructor.
+// NewDatabase - Database cinstructor.
 func NewDatabase(con string) Database {
 	return Database{
 		ConString: con,
 	}
 }
 
-//InitDataBase - initialize new database connection. Open, Create DB and Structures if needed.
+// InitDataBase - initialize new database connection. Open, Create DB and Structures if needed.
 func (d *Database) InitDatabase() {
 	psqlconn := d.ConString
 	var err error
@@ -48,14 +46,14 @@ func (d *Database) InitDatabase() {
 
 }
 
-//CheckError - Database helper function which logs error.
+// CheckError - Database helper function which logs error.
 func CheckError(err error) {
 	if err != nil {
 		log.Printf("Database error: %s", err)
 	}
 }
 
-//CreateDBIfNotExist - create project database if needed.
+// CreateDBIfNotExist - create project database if needed.
 func (d Database) CreateDBIfNotExist() error {
 	var query = `SELECT 'CREATE DATABASE logs'
 	WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'logs')`
@@ -65,7 +63,7 @@ func (d Database) CreateDBIfNotExist() error {
 	return err
 }
 
-//CreateTableIfNotExist - create tables for project if needed.
+// CreateTableIfNotExist - create tables for project if needed.
 func (d Database) CreateTableIfNotExist() error {
 	var query = `CREATE TABLE IF NOT EXISTS public.log_data_2
 (
@@ -87,7 +85,7 @@ func (d Database) CreateTableIfNotExist() error {
 
 }
 
-//InsertMetric - save or update models.Metrics to database.
+// InsertMetric - save or update models.Metrics to database.
 func (d Database) InsertMetric(ctx context.Context, m models.Metrics) error {
 	var query = `INSERT INTO log_data_2 (id, mtype, delta, value, hash)
 	VALUES ($1, $2, $3, $4, $5)
@@ -105,11 +103,9 @@ func (d Database) InsertMetric(ctx context.Context, m models.Metrics) error {
 	return err
 }
 
-//GetMetric - get models.Metrics from database.
+// GetMetric - get models.Metrics from database.
 func (d Database) GetMetric(data models.Metrics) (models.Metrics, error) {
-	//log.Println(data)
 	err := d.DB.QueryRow("SELECT mtype,delta,value,hash FROM log_data_2 WHERE id = $1", data.ID).Scan(&data.MType, &data.Delta, &data.Value, &data.Hash)
-	//log.Println(data)
 	if data.Delta == nil && data.Value == nil {
 		data.Delta = new(int64)
 		data.Value = new(float64)
@@ -120,8 +116,8 @@ func (d Database) GetMetric(data models.Metrics) (models.Metrics, error) {
 
 }
 
-//GetAll - get all models.Metrics from database.
-//Return []models.Metrics.
+// GetAll - get all models.Metrics from database.
+// Return []models.Metrics.
 func (d Database) GetAll(ctx context.Context) []models.Metrics {
 	var query = `SELECT * from log_data_2`
 	rows, err := d.DB.QueryContext(ctx, query)
@@ -134,16 +130,16 @@ func (d Database) GetAll(ctx context.Context) []models.Metrics {
 	for rows.Next() {
 		model := models.Metrics{}
 		if err := rows.Scan(&model.ID, &model.MType, &model.Delta, &model.Value, &model.Hash); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		data = append(data, model)
 	}
 	return data
 }
 
-//InsertData - save raw metrics data to database.
+// InsertData - save raw metrics data to database.
 //
-//Deprecated: use InsertMetric.
+// Deprecated: use InsertMetric.
 func (d Database) InsertData(ctx context.Context, typeVar string, name string, value string, hash string) int {
 	var model models.Metrics
 	model.ID = name
@@ -153,7 +149,6 @@ func (d Database) InsertData(ctx context.Context, typeVar string, name string, v
 			tmp, _ := strconv.ParseFloat(value, 64)
 			model.Value = &tmp
 		} else {
-			//http.Error(w, "Bad value found!", http.StatusBadRequest)
 			return http.StatusBadRequest
 		}
 	}
@@ -161,9 +156,7 @@ func (d Database) InsertData(ctx context.Context, typeVar string, name string, v
 		if utils.CheckIfStringIsNumber(value) {
 			tmp, _ := strconv.ParseInt(value, 10, 64)
 			model.Delta = &tmp
-			//	log.Println(*model.Delta)
 		} else {
-			//http.Error(w, "Bad value found!", http.StatusBadRequest)
 			return http.StatusBadRequest
 		}
 	}
@@ -172,15 +165,14 @@ func (d Database) InsertData(ctx context.Context, typeVar string, name string, v
 	return http.StatusOK
 }
 
-//SaveData - save all data from DB to string.
-//Used to pass autotests.
-//No need to save data to file if you use DB.
+// SaveData - save all data from DB to string.
+// Used to pass autotests.
+// No need to save data to file if you use DB.
 func (d Database) SaveData(file string) {
 	if file == "" {
 		return
 	}
 	ctx := context.TODO()
-	//	defer cancel()
 	jData, err := json.Marshal(d.GetAll(ctx))
 	if err != nil {
 		log.Panic(err)
@@ -188,14 +180,14 @@ func (d Database) SaveData(file string) {
 	_ = ioutil.WriteFile(file, jData, 0644)
 }
 
-//Restore - do nothing.
-//Needed becouse of Storage interface.
+// Restore - do nothing.
+// Needed becouse of Storage interface.
 func (d Database) Restore(file string) {
 	log.Println("DB Connected, no need to restore from file")
 }
 
-//PingDB - helper func.
-//Use if need to know current DB connection status.
+// PingDB - helper func.
+// Use if need to know current DB connection status.
 func (d Database) PingDB() bool {
 	if k := d.DB.Ping(); k != nil {
 		log.Println("cant ping DB!")
@@ -204,8 +196,8 @@ func (d Database) PingDB() bool {
 	return true
 }
 
-//BatchInsert - save []models.Metrics to database.
-//Check if current rnd value is commited before insert.
+// BatchInsert - save []models.Metrics to database.
+// Check if current rnd value is commited before insert.
 func (d Database) BatchInsert(ctx context.Context, dataModels []models.Metrics) error {
 	if len(dataModels) == 0 {
 		return errors.New("empty batch")
@@ -223,35 +215,29 @@ func (d Database) BatchInsert(ctx context.Context, dataModels []models.Metrics) 
 		delta = EXCLUDED.delta + log_data_2.delta,
 		value = EXCLUDED.value,
 		hash = EXCLUDED.hash`
-	// шаг 1 — объявляем транзакцию
 	tx, err := d.DB.Begin()
 	if err != nil {
 		return err
 	}
-	// шаг 1.1 — если возникает ошибка, откатываем изменения
 	defer tx.Rollback()
-	// шаг 2 — готовим инструкцию
 
 	stmt, err := tx.PrepareContext(ctx, query)
 	if err != nil {
 		return err
 	}
-	// шаг 2.1 — не забываем закрыть инструкцию, когда она больше не нужна
 	defer stmt.Close()
 
 	for _, v := range dataModels {
-		// шаг 3 — указываем, что каждое видео будет добавлено в транзакцию
 		if _, err = stmt.ExecContext(ctx, v.ID, v.MType, v.Delta, v.Value, v.Hash); err != nil {
 			return err
 		}
 	}
-	// шаг 4 — сохраняем изменения
 	return tx.Commit()
 
 }
 
-//GetCurrentCommit - get current rnd value from DB.
-//Used by BatchInsert in order to know if needed to update.
+// GetCurrentCommit - get current rnd value from DB.
+// Used by BatchInsert in order to know if needed to update.
 func (d Database) GetCurrentCommit() float64 {
 	randVal := models.Metrics{
 		ID: "RandomValue",

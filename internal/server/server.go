@@ -1,6 +1,6 @@
-// Server module collects runtime metrics and save recieved from remote agent.
-// Moodule is controlled by enviroment variables and console keys.
-// All settings are provided in console output.
+//  Server module collects runtime metrics and save recieved from remote agent.
+//  Moodule is controlled by enviroment variables and console keys.
+//  All settings are provided in console output.
 package server
 
 import (
@@ -25,32 +25,25 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-//Config structure is server configiguration.
+// Config structure is server configiguration.
 type Config struct {
-	//Server is a string which contais server address and port.
-	Server string `env:"ADDRESS" envDefault:"localhost:8080"`
-	//StoreInterval is a time.Duration value which contains interval for serialization of current data.
-	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"` // 0 for sync
-	//StoreFile - string value for full path to file to serialization.
-	StoreFile string `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"` // empty for no store test.json /tmp/devops-metrics-db.json
-	//RestoreFlag - bool value if app need to restore previous state from StoreFile.
-	RestoreFlag bool `env:"RESTORE" envDefault:"true"` //restore from file
-	//KeyFileFlag - string which contains key to generate MAC for each request.
-	//BUG(Max): Actually it is missleading name, there is no file, string will converted to bytes and used as a key to crypto func.
-	KeyFileFlag string `env:"KEY" envDefault:"12345678"` // key
-	//DatabaseEnv - DSN string.
-	DatabaseEnv string `env:"DATABASE_DSN"`
+	Server        string        `env:"ADDRESS" envDefault:"localhost:8080"`
+	StoreFile     string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
+	KeyFileFlag   string        `env:"KEY" envDefault:"12345678"`
+	DatabaseEnv   string        `env:"DATABASE_DSN"`
+	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`
+	RestoreFlag   bool          `env:"RESTORE" envDefault:"true"`
 }
 
-//Server - internal server structure.
+// Server - internal server structure.
 type Server struct {
-	cfg   Config
 	handl handlers.Handlers
 	srv   *http.Server
 	db    *database.Database
+	cfg   Config
 }
 
-//NewServer - Server constructor.
+// NewServer - Server constructor.
 func NewServer() Server {
 	var cfg Config
 	var envCfg = make(map[string]bool)
@@ -129,8 +122,8 @@ func init() {
 	databaseArg = flag.String("d", "", "string database config")
 }
 
-//StartServe - main server func.
-//It stands for endpoits initialization and server handling.
+// StartServe - main server func.
+// It stands for endpoits initialization and server handling.
 func (s *Server) StartServe() {
 	if s.cfg.DatabaseEnv == "" {
 		if s.cfg.StoreFile != "" || s.cfg.StoreInterval.Nanoseconds() > 0 {
@@ -199,5 +192,5 @@ func (s *Server) saveData(file string) {
 
 func (s *Server) Restore(file string) {
 	s.handl.Repo.Restore(file)
-	//	log.Println("Data restored")
+	// 	log.Println("Data restored")
 }

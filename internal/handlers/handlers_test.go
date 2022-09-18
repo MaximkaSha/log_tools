@@ -24,19 +24,19 @@ import (
 )
 
 func TestHandlers_HandleUpdate(t *testing.T) {
-	// определяем структуру теста
+	//  определяем структуру теста
 	type want struct {
-		code        int
 		contentType string
+		code        int
 	}
-	// создаём массив тестов: имя и желаемый результат
+	//  создаём массив тестов: имя и желаемый результат
 	tests := []struct {
 		name   string
-		want   want
 		url    string
 		method string
+		want   want
 	}{
-		// определяем все тесты
+		//  определяем все тесты
 		{
 			name: "positive counter #1",
 			want: want{
@@ -92,7 +92,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			method: "POST",
 		},
 		{
-			name: "get value possitive", //надо значение из body проверить
+			name: "get value possitive", // надо значение из body проверить
 			want: want{
 				code:        200,
 				contentType: "text/html",
@@ -101,7 +101,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			method: "GET",
 		},
 		{
-			name: "get negative", //надо значение из body проверить
+			name: "get negative", // надо значение из body проверить
 			want: want{
 				code:        404,
 				contentType: "text/plain; charset=utf-8",
@@ -119,7 +119,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			method: "GET",
 		},
 		{
-			name: "get home", //надо значение из body проверить
+			name: "get home", // надо значение из body проверить
 			want: want{
 				code:        200,
 				contentType: "text/html",
@@ -129,7 +129,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		// запускаем каждый тест
+		//  запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
 			var request = new(http.Request)
 			if tt.method == "POST" {
@@ -138,16 +138,16 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			if tt.method == "GET" || tt.method == "home" {
 				request = httptest.NewRequest(http.MethodGet, tt.url, nil)
 			}
-			// создаём новый Recorder
+			//  создаём новый Recorder
 			w := httptest.NewRecorder()
-			// определяем хендлер
+			//  определяем хендлер
 			var repoInt models.Storager
 			repo := storage.NewRepo()
 			repoInt = &repo
 			handl := NewHandlers(repoInt, crypto.NewCryptoService())
 			mux := chi.NewRouter()
 			ctx := context.TODO()
-			//defer cancel()
+			// defer cancel()
 			if tt.method == "POST" {
 				mux.Post("/update/{type}/{name}/{value}", handl.HandleUpdate)
 			}
@@ -160,17 +160,17 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 				handl.Repo.InsertData(ctx, "gauge", "TestCount", "100.00", "123")
 				mux.Get("/", handl.HandleGetHome)
 			}
-			// запускаем сервер
+			//  запускаем сервер
 			mux.ServeHTTP(w, request)
 			res := w.Result()
 
-			// проверяем код ответа
+			//  проверяем код ответа
 			if res.StatusCode != tt.want.code {
 				t.Errorf("Expected status code %d, got %d", tt.want.code, w.Code)
 			}
-			// получаем и проверяем тело запроса
+			//  получаем и проверяем тело запроса
 			defer res.Body.Close()
-			// заголовок ответа
+			//  заголовок ответа
 			if res.Header.Get("Content-Type") != tt.want.contentType {
 				t.Errorf("Expected Content-Type %s, got %s", tt.want.contentType, res.Header.Get("Content-Type"))
 			}
@@ -185,10 +185,10 @@ func TestHandlers_HandleGetUpdate(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		obj  Handlers
 		args args
+		obj  Handlers
 	}{
-		// TODO: Add test cases.
+		//  TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -198,22 +198,22 @@ func TestHandlers_HandleGetUpdate(t *testing.T) {
 }
 
 func TestHandlers_HandlePostJSONUpdate(t *testing.T) {
-	// определяем структуру теста
+	//  определяем структуру теста
 	type want struct {
-		code        int
 		contentType string
 		body        string
+		code        int
 	}
-	// создаём массив тестов: имя и желаемый результат
+	//  создаём массив тестов: имя и желаемый результат
 	tests := []struct {
 		name        string
-		want        want
 		url         string
 		method      string
 		contentType string
 		data        string
+		want        want
 	}{
-		// определяем все тесты
+		//  определяем все тесты
 		{
 			name: "positive json #1",
 			want: want{
@@ -302,10 +302,7 @@ func TestHandlers_HandlePostJSONUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := storage.NewRepo()
-			var request = new(http.Request)
-			//data := strings.NewReader(tt.data)
-			//data, _ := json.Marshal(tt.data)
-			request = httptest.NewRequest(http.MethodPost, tt.url, strings.NewReader(tt.data))
+			request := httptest.NewRequest(http.MethodPost, tt.url, strings.NewReader(tt.data))
 			request.Header.Add("Content-Type", tt.contentType)
 			w := httptest.NewRecorder()
 			srv, _ := NewTestServer(&repo)
@@ -328,22 +325,19 @@ func TestHandlers_HandlePostJSONUpdate(t *testing.T) {
 }
 
 func TestHandlers_HandlePostJSONValue(t *testing.T) {
-	// определяем структуру теста
 	type want struct {
-		code        int
 		contentType string
 		body        string
+		code        int
 	}
-	// создаём массив тестов: имя и желаемый результат
 	tests := []struct {
 		name        string
-		want        want
 		url         string
 		method      string
 		contentType string
 		data        string
+		want        want
 	}{
-		// определяем все тесты
 		{
 			name: "positive json #1",
 			want: want{
@@ -396,8 +390,7 @@ func TestHandlers_HandlePostJSONValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := storage.NewRepo()
-			var request = new(http.Request)
-			request = httptest.NewRequest(http.MethodPost, tt.url, strings.NewReader(tt.data))
+			request := httptest.NewRequest(http.MethodPost, tt.url, strings.NewReader(tt.data))
 			request.Header.Add("Content-Type", tt.contentType)
 			w := httptest.NewRecorder()
 			srv, handl := NewTestServer(&repo)
@@ -439,11 +432,11 @@ func ExampleHandlers_HandleUpdate() {
 	defer resp.Body.Close()
 	byteVar, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
 	}
 	fmt.Println(string(byteVar))
-	// Output:
-	// 10
+	//  Output:
+	//  10
 }
 
 func ExampleHandlers_HandlePostJSONUpdate() {
@@ -470,8 +463,8 @@ func ExampleHandlers_HandlePostJSONUpdate() {
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 	fmt.Println("", string(body))
-	// Output:
-	// {"id":"PollCounter","type":"counter","delta":10}
+	//  Output:
+	//  {"id":"PollCounter","type":"counter","delta":10}
 }
 
 func ExampleHandlers_HandleGetHome() {
@@ -489,13 +482,13 @@ func ExampleHandlers_HandleGetHome() {
 	defer resp.Body.Close()
 	byteVar, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
 	}
 	checkSum := md5.Sum(byteVar)
 	checkSumStr := hex.EncodeToString(checkSum[:])
 	fmt.Println(checkSumStr)
-	// Output:
-	// 9f588c81bb10904d7b5fb7dc7b8fc4fa
+	//  Output:
+	//  9f588c81bb10904d7b5fb7dc7b8fc4fa
 
 }
 func ExampleHandlers_HandleGetPing() {
@@ -509,8 +502,8 @@ func ExampleHandlers_HandleGetPing() {
 	resp := w.Result()
 	defer resp.Body.Close()
 	fmt.Println(resp.StatusCode)
-	// Output:
-	// 501
+	//  Output:
+	//  501
 
 }
 
@@ -530,8 +523,8 @@ func ExampleHandlers_HandlePostJSONUpdates() {
 	resp := w.Result()
 	defer resp.Body.Close()
 	fmt.Println(resp.StatusCode)
-	// Output:
-	// 501
+	//  Output:
+	//  501
 }
 
 func NewTestServer(repo models.Storager) (*chi.Mux, *Handlers) {

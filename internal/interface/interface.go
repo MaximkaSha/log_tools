@@ -1,4 +1,4 @@
-//package interfaces describe projects interface.
+// Package interfaces describe projects interface.
 
 package interfaces
 

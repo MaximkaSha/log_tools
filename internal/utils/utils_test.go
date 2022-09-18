@@ -46,8 +46,8 @@ func TestFloat64ToByte(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		args args
 		want string
+		args args
 	}{
 		{
 			name: "positive #1",
@@ -71,8 +71,8 @@ func TestFloat64ToByte(t *testing.T) {
 
 func TestCheckError(t *testing.T) {
 	tests := []struct {
-		name string
 		args error
+		name string
 	}{
 		{
 			name: "positive #1",

@@ -19,17 +19,14 @@ import (
 
 // Handlers struct.
 type Handlers struct {
-	handlers *http.ServeMux
-	// Repo interface modeles.Storager for ineterreact with storage.
-	Repo models.Storager
-	// SyncFile path to sync file.
+	Repo          models.Storager
+	handlers      *http.ServeMux
+	DB            *database.Database
 	SyncFile      string
 	cryptoService crypto.CryptoService
-	// DB database pointer.
-	DB *database.Database
 }
 
-// NewHandlers constrcutor for Handlers.
+//  NewHandlers constrcutor for Handlers.
 func NewHandlers(repo models.Storager, cryptoService crypto.CryptoService) Handlers {
 	handl := http.NewServeMux()
 	return Handlers{
@@ -40,13 +37,13 @@ func NewHandlers(repo models.Storager, cryptoService crypto.CryptoService) Handl
 	}
 }
 
-// HandleUpdate endpoint for raw data.
-// Endpoint get data from URL parametrs type/name/value.
-// Readed data pushed to storage.
-// If type is not gauge or counter, then 501 error.
-// If data is not int64 or float64 then error.
-// If all OK then 200.
-func (h *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //should be renamed to HandlePostUpdate
+//  HandleUpdate endpoint for raw data.
+//  Endpoint get data from URL parametrs type/name/value.
+//  Readed data pushed to storage.
+//  If type is not gauge or counter, then 501 error.
+//  If data is not int64 or float64 then error.
+//  If all OK then 200.
+func (h *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { // should be renamed to HandlePostUpdate
 	typeVal := chi.URLParam(r, "type")
 	nameVal := chi.URLParam(r, "name")
 	valueVal := chi.URLParam(r, "value")
@@ -80,14 +77,14 @@ func (h *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { //shou
 }
 
 /*
-curl --header "Content-Type: application/json" --request POST --data "{\"id\":\"PollCount\",\"type\":\"gauge\",\"value\":10.0230}" http://localhost:8080/update/
+curl --header "Content-Type: application/json" --request POST --data "{\"id\":\"PollCount\",\"type\":\"gauge\",\"value\":10.0230}" http:// localhost:8080/update/
 */
-// HandlePostJSONUpdate endpoint for JSON data.
-// Endpoint get data from POSTed JSON models.Metrics.
-// Readed data pushed to storage.
-// If type is not gauge or counter, then 501 error.
-// If data is not int64 or float64 then error.
-// If all OK then 200.
+//  HandlePostJSONUpdate endpoint for JSON data.
+//  Endpoint get data from POSTed JSON models.Metrics.
+//  Readed data pushed to storage.
+//  If type is not gauge or counter, then 501 error.
+//  If data is not int64 or float64 then error.
+//  If all OK then 200.
 func (h *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
@@ -108,7 +105,7 @@ func (h *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request) 
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
 		h.Repo.InsertMetric(ctx, *data)
-		//h.Repo.SaveData(h.SyncFile)
+		// h.Repo.SaveData(h.SyncFile)
 		w.WriteHeader(http.StatusOK)
 		jData, _ := json.Marshal(data)
 		w.Write(jData)
@@ -118,12 +115,12 @@ func (h *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request) 
 
 }
 
-// HandlePostJSONValue endpoint for getting data from storage.
-// Endpoint reads models.Metrics type and value.
-// For readed data returns models.Metrics with value.
-// If type is not gauge or counter, then 501 error.
-// If data is not int64 or float64 then error.
-// If all OK then 200.
+//  HandlePostJSONValue endpoint for getting data from storage.
+//  Endpoint reads models.Metrics type and value.
+//  For readed data returns models.Metrics with value.
+//  If type is not gauge or counter, then 501 error.
+//  If data is not int64 or float64 then error.
+//  If all OK then 200.
 func (h *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
@@ -204,7 +201,7 @@ func (h *Handlers) HandleGetUpdate(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//HandlePing return 200 if DB connected.
+// HandlePing return 200 if DB connected.
 func (h *Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	if !h.Repo.PingDB() {
@@ -214,18 +211,16 @@ func (h *Handlers) HandleGetPing(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-//HandlePostJSONUpdates get []models.Metrics{} from POST data and batch update it on storage.
+// HandlePostJSONUpdates get []models.Metrics{} from POST data and batch update it on storage.
 func (h *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data models.MetricsDB
 		content, err := ioutil.ReadAll(r.Body)
-		//log.Println(string(content))
 		if err != nil {
 			log.Fatal(err)
 		}
 		err = json.Unmarshal(content, &data)
-		//log.Println(err)
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)

@@ -13,9 +13,9 @@ func TestRepository_insertCount(t *testing.T) {
 		value string
 	}
 	tests := []struct {
+		args    models.Metrics
 		name    string
 		r       Repository
-		args    models.Metrics
 		wantErr bool
 	}{
 		{

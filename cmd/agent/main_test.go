@@ -1,7 +1,6 @@
 package main
 
 import (
-	//"runtime"
 	"runtime"
 	"testing"
 	"time"
@@ -27,7 +26,6 @@ import (
 
 func Test_collectLogs(t *testing.T) {
 	type args struct {
-		//	ld  *logData
 		rtm runtime.MemStats
 	}
 	tests := []struct {

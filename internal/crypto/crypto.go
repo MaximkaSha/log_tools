@@ -31,9 +31,7 @@ func (c *CryptoService) InitCryptoService(keyFile string) error {
 			return errors.New("can't open key file")
 		}
 		defer fileKey.Close() */
-	//var keyBuf []byte
 	keyBuf := []byte(keyFile)
-	//log.Println(keyBu)
 	if len(keyBuf) == 0 {
 		c.IsEnable = false
 		log.Println("no key")
@@ -52,15 +50,12 @@ func (c CryptoService) IsServiceEnable() bool {
 func (c CryptoService) Hash(m *models.Metrics) (int, error) {
 	hasher := hmac.New(sha256.New, c.key)
 	src := m.StringData()
-	//log.Println(string(src))
 	nBytes, err := hasher.Write([]byte(src))
 	if err != nil {
 		log.Println("Hashing error!")
 		return 0, errors.New("hashing error")
 	}
-	//log.Printf("Signed %d bytes", nBytes)
 	m.Hash = hex.EncodeToString(hasher.Sum(nil))
-	//log.Println(m)
 	return nBytes, nil
 }
 

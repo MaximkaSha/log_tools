@@ -22,8 +22,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	for _, file := range pass.Files {
 		if findSubString(file.Name.String(), "main") {
 			ast.Inspect(file, func(node ast.Node) bool {
-				switch x := node.(type) {
-				case *ast.CallExpr:
+				if x, ok := node.(*ast.CallExpr); ok {
 					str := fmt.Sprintf("%v", pass.Fset.Position(x.Fun.Pos()))
 					var buf bytes.Buffer
 					printer.Fprint(&buf, pass.Fset, x.Fun)
@@ -32,7 +31,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 						printer.Fprint(os.Stdout, pass.Fset, x.Fun)
 						fmt.Println()
 					}
-
 				}
 				return true
 			})
