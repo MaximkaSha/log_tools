@@ -21,7 +21,7 @@ type Repository struct {
 	JSONDB []models.Metrics
 }
 
-// InsertMetrics - add models.Metrics to storage.
+// InsertMetric - add models.Metrics to storage.
 func (r *Repository) InsertMetric(ctx context.Context, m models.Metrics) error {
 	r.AppendMetric(m)
 	return nil

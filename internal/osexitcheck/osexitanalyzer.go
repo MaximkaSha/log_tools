@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/printer"
-	"os"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -27,9 +26,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					var buf bytes.Buffer
 					printer.Fprint(&buf, pass.Fset, x.Fun)
 					if findOSExitInMain(buf.String() + str) {
-						fmt.Printf("Found os.Exit in main() %v: ", pass.Fset.Position(x.Fun.Pos()))
-						printer.Fprint(os.Stdout, pass.Fset, x.Fun)
-						fmt.Println()
+						pass.Reportf(x.Fun.Pos(), "found os.Exit in main()")
 					}
 				}
 				return true
