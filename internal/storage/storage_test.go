@@ -1,12 +1,12 @@
 package storage
 
-/*
-
 import (
-	"net/http"
-	"reflect"
+	"context"
 	"testing"
+
+	"github.com/MaximkaSha/log_tools/internal/models"
 )
+
 func TestRepository_insertCount(t *testing.T) {
 	type args struct {
 		name  string
@@ -15,64 +15,44 @@ func TestRepository_insertCount(t *testing.T) {
 	tests := []struct {
 		name    string
 		r       Repository
-		args    args
+		args    models.Metrics
 		wantErr bool
 	}{
 		{
 			name: "positive",
 			r:    NewRepo(),
-			args: args{
-				name:  "Test",
-				value: "123",
+			args: models.Metrics{
+				ID:    "Test",
+				MType: "counter",
+				Delta: new(int64),
 			},
 			wantErr: false,
 		},
 		{
 			name: "positive #2",
 			r:    NewRepo(),
-			args: args{
-				name:  "Test",
-				value: "123",
-			},
-			wantErr: false,
-		},
-		{
-			name: "negative",
-			r:    NewRepo(),
-			args: args{
-				name:  "Test",
-				value: "not int",
-			},
-			wantErr: true,
-		},
-		{
-			name: "negative #2",
-			r:    NewRepo(),
-			args: args{
-				name:  "Test",
-				value: "not int",
+			args: models.Metrics{
+				ID:    "Test",
+				MType: "gauge",
+				Value: new(float64),
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.name == "postive #2" || tt.name == "negative #2" {
-				tt.r.InsertData("counter", "Test", "100")
-			}
-			if err := tt.r.insertCount(tt.args.name, tt.args.value); (err != nil) != tt.wantErr {
-				t.Errorf("Repository.insertCount() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if (tt.name == "postive #2") && (tt.r.db["Test"] != "200") {
-				t.Errorf("Repository.insertCount() expcted = 200, got %v", tt.r.db["Test"])
-			}
-			if (tt.name == "negative #2") && (tt.r.db["Test"] != "100") {
-				t.Errorf("Repository.insertCount() expected != 100, got %v", tt.r.db["Test"])
+			ctx := context.TODO()
+			//	if tt.name == "postive #2" || tt.name == "negative #2" {
+			//		tt.r.InsertData("counter", "Test", "100")
+			//	}
+			if err := tt.r.InsertMetric(ctx, tt.args); (err != nil) != tt.wantErr {
+				t.Errorf("Repository.InsertMetric() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
+/*
 func TestRepository_insertGouge(t *testing.T) {
 	type args struct {
 		name  string

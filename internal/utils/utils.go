@@ -1,3 +1,4 @@
+//package utils provide common utils for agent and server.
 package utils
 
 import (
@@ -7,6 +8,7 @@ import (
 	"strconv"
 )
 
+//CheckIfStringIsNumber - return true if string is float64 or int64 value.
 func CheckIfStringIsNumber(v string) bool {
 	if _, err1 := strconv.Atoi(v); err1 == nil {
 		return true
@@ -17,6 +19,7 @@ func CheckIfStringIsNumber(v string) bool {
 	return false
 }
 
+//Float64ToByte - convert float64 value to bytes.Buffer.
 func Float64ToByte(f float64) []byte {
 	var buf bytes.Buffer
 	err := binary.Write(&buf, binary.LittleEndian, f)
@@ -26,6 +29,7 @@ func Float64ToByte(f float64) []byte {
 	return buf.Bytes()
 }
 
+//CheckError - logs error.
 func CheckError(err error) {
 	if err != nil {
 		log.Printf("error: %s", err)
