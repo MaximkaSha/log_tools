@@ -92,9 +92,9 @@ func (a *Agent) StartService() {
 
 // AgentSendWorker - send all collected data by POST,JSON and batch JSON to remote server.
 func (a Agent) AgentSendWorker() {
-	a.SendLogsbyPost("http:// " + a.cfg.Server + "/update/")
-	a.SendLogsbyJSON("http:// " + a.cfg.Server + "/update/")
-	a.SendLogsbyJSONBatch("http:// " + a.cfg.Server + "/updates/")
+	a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
+	a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
+	a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
 }
 
 // SendLogsbyJSONBatch - send logs to remote server by JSON batch (fastest way).
@@ -141,6 +141,7 @@ func (a Agent) SendLogsbyJSON(url string) error {
 
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 		if err == nil {
+			log.Println(err)
 			defer resp.Body.Close()
 		}
 	}
@@ -251,7 +252,6 @@ func (a *Agent) CollectLogs() {
 	a.AppendMetric(models.Metrics{ID: "FreeMemory", MType: "gauge", Delta: nil, Value: &tmpFreeMem})
 	a.AppendMetric(models.Metrics{ID: "CPUutilization1", MType: "gauge", Delta: nil, Value: &CPU[0]})
 	log.Println("Collected logs")
-	// 	log.Println(a.logDB)
 }
 
 func parseCfg() Config {

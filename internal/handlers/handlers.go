@@ -167,6 +167,7 @@ func (h *Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	repo := h.Repo.GetAll(ctx)
+	log.Println(repo)
 	allData, _ := json.MarshalIndent(repo, "", "    ")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(allData))

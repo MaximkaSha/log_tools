@@ -46,8 +46,5 @@ func findOSExitInMain(src string) bool {
 }
 
 func findSubString(src string, sub string) bool {
-	if strings.Contains(src, sub) {
-		return true
-	}
-	return false
+	return strings.Contains(src, sub)
 }
