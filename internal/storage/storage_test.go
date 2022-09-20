@@ -2,161 +2,118 @@ package storage
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/MaximkaSha/log_tools/internal/models"
+	"github.com/openlyinc/pointy"
 )
 
-func TestRepository_insertCount(t *testing.T) {
+func TestRepository_InsertMetric(t *testing.T) {
 	type args struct {
-		name  string
-		value string
+		ctx context.Context
+		m   models.Metrics
 	}
 	tests := []struct {
 		name    string
-		r       Repository
-		args    models.Metrics
+		r       *Repository
+		args    args
 		wantErr bool
 	}{
 		{
-			name: "positive",
-			r:    NewRepo(),
-			args: models.Metrics{
-				ID:    "Test",
-				MType: "counter",
-				Delta: new(int64),
+			name: "Pos #1",
+			r: &Repository{
+				JSONDB: []models.Metrics{},
 			},
-			wantErr: false,
-		},
-		{
-			name: "positive #2",
-			r:    NewRepo(),
-			args: models.Metrics{
-				ID:    "Test",
-				MType: "gauge",
-				Value: new(float64),
+			args: args{
+				ctx: context.TODO(),
+				m:   models.NewMetric("test", "counter", pointy.Int64(10), nil, ""),
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.TODO()
-			//	if tt.name == "postive #2" || tt.name == "negative #2" {
-			//		tt.r.InsertData("counter", "Test", "100")
-			//	}
-			if err := tt.r.InsertMetric(ctx, tt.args); (err != nil) != tt.wantErr {
+			if err := tt.r.InsertMetric(tt.args.ctx, tt.args.m); (err != nil) != tt.wantErr {
 				t.Errorf("Repository.InsertMetric() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.args.m != tt.r.JSONDB[0] {
+				t.Error("Repository.InsertMetric() error ")
 			}
 		})
 	}
 }
 
-/*
-func TestRepository_insertGouge(t *testing.T) {
+func TestRepository_GetMetric(t *testing.T) {
 	type args struct {
-		name  string
-		value string
+		data models.Metrics
 	}
 	tests := []struct {
 		name    string
-		r       Repository
+		r       *Repository
 		args    args
+		want    models.Metrics
 		wantErr bool
 	}{
 		{
-			name: "positive",
-			r:    NewRepo(),
+			name: "pos #1",
+			r: &Repository{
+				JSONDB: []models.Metrics{
+					{
+						ID:    "test",
+						MType: "counter",
+						Delta: pointy.Int64(123),
+					},
+				},
+			},
 			args: args{
-				name:  "Test",
-				value: "123.000",
+				data: models.Metrics{
+					ID:    "test",
+					MType: "counter",
+				},
+			},
+			want: models.Metrics{
+				ID:    "test",
+				MType: "counter",
+				Delta: pointy.Int64(123),
 			},
 			wantErr: false,
 		},
 		{
-			name: "positive",
-			r:    NewRepo(),
+			name: "pos #2",
+			r: &Repository{
+				JSONDB: []models.Metrics{
+					{
+						ID:    "test",
+						MType: "counter",
+						Delta: pointy.Int64(123),
+					},
+				},
+			},
 			args: args{
-				name:  "Test",
-				value: "not float",
+				data: models.Metrics{
+					ID:    "test1",
+					MType: "counter",
+				},
+			},
+			want: models.Metrics{
+				ID:    "test1",
+				MType: "counter",
+				Delta: new(int64),
+				Value: pointy.Float64(0.0),
 			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.r.insertGouge(tt.args.name, tt.args.value); (err != nil) != tt.wantErr {
-				t.Errorf("Repository.insertGouge() error = %v, wantErr %v", err, tt.wantErr)
+			got, err := tt.r.GetMetric(tt.args.data)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Repository.GetMetric() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
-		})
-	}
-}
-
-func TestRepository_GetByName(t *testing.T) {
-	type args struct {
-		name string
-	}
-	tests := []struct {
-		name  string
-		r     Repository
-		args  args
-		want  string
-		want1 bool
-	}{
-		{
-			name: "positive",
-			r:    NewRepo(),
-			args: args{
-				name: "Test",
-			},
-			want:  "100",
-			want1: true,
-		},
-		{
-			name: "negative",
-			r:    NewRepo(),
-			args: args{
-				name: "NegativeTest",
-			},
-			want:  "",
-			want1: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.r.InsertData("gauge", "Test", "100")
-			got, got1 := tt.r.GetByName(tt.args.name)
-			if got != tt.want {
-				t.Errorf("Repository.GetByName() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("Repository.GetByName() got1 = %v, want %v", got1, tt.want1)
-			}
-		})
-	}
-}
-
-func TestRepository_GetAll(t *testing.T) {
-	tests := []struct {
-		name string
-		r    Repository
-		want map[string]string
-	}{
-		{
-			name: "positive",
-			r: Repository{map[string]string{
-				"Test": "100",
-			},
-				NewRepo().JSONDB},
-			want: map[string]string{
-				"Test": "100",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.r.GetAll(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Repository.GetAll() = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Repository.GetMetric() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -164,63 +121,80 @@ func TestRepository_GetAll(t *testing.T) {
 
 func TestRepository_InsertData(t *testing.T) {
 	type args struct {
+		ctx     context.Context
 		typeVar string
 		name    string
 		value   string
+		hash    string
 	}
 	tests := []struct {
 		name string
-		r    Repository
+		r    *Repository
 		args args
 		want int
 	}{
 		{
-			name: "positive",
-			r:    NewRepo(),
+			name: "Pos counter #1",
+			r: &Repository{
+				JSONDB: []models.Metrics{},
+			},
 			args: args{
+				ctx:     context.TODO(),
 				typeVar: "counter",
-				name:    "Test",
-				value:   "123",
+				name:    "test",
+				value:   "10",
+				hash:    "",
 			},
 			want: 200,
 		},
 		{
-			name: "positive #2",
-			r:    NewRepo(),
+			name: "Pos gauge #1",
+			r: &Repository{
+				JSONDB: []models.Metrics{},
+			},
 			args: args{
+				ctx:     context.TODO(),
 				typeVar: "gauge",
-				name:    "Test",
-				value:   "123",
+				name:    "test",
+				value:   "10.01",
+				hash:    "",
 			},
 			want: 200,
 		},
 		{
-			name: "negative #1",
-			r:    NewRepo(),
-			args: args{
-				typeVar: "counter",
-				name:    "Test",
-				value:   "error",
+			name: "Neg counter #1",
+			r: &Repository{
+				JSONDB: []models.Metrics{},
 			},
-			want: http.StatusBadRequest,
+			args: args{
+				ctx:     context.TODO(),
+				typeVar: "counter",
+				name:    "test",
+				value:   "not_a_number",
+				hash:    "",
+			},
+			want: 400,
 		},
 		{
-			name: "negative #2",
-			r:    NewRepo(),
-			args: args{
-				typeVar: "gauge",
-				name:    "Test",
-				value:   "error",
+			name: "Neg gauge #1",
+			r: &Repository{
+				JSONDB: []models.Metrics{},
 			},
-			want: http.StatusBadRequest,
+			args: args{
+				ctx:     context.TODO(),
+				typeVar: "gauge",
+				name:    "test",
+				value:   "not_a_number",
+				hash:    "",
+			},
+			want: 400,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.r.InsertData(tt.args.typeVar, tt.args.name, tt.args.value); got != tt.want {
+			if got := tt.r.InsertData(tt.args.ctx, tt.args.typeVar, tt.args.name, tt.args.value, tt.args.hash); got != tt.want {
 				t.Errorf("Repository.InsertData() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
-*/

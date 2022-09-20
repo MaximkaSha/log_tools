@@ -1,14 +1,13 @@
 package main
 
 import (
-	//"runtime"
 	"runtime"
 	"testing"
 	"time"
 	//	"github.com/MaximkaSha/log_tools/internal/agent"
 )
 
-func Test_sendLogs(t *testing.T) {
+/*func Test_sendLogs(t *testing.T) {
 	type args struct {
 		//	ld agent.Agent.logDB,
 	}
@@ -23,11 +22,10 @@ func Test_sendLogs(t *testing.T) {
 			//	sendLogs(tt.args.ld)
 		})
 	}
-}
+} */
 
 func Test_collectLogs(t *testing.T) {
 	type args struct {
-		//	ld  *logData
 		rtm runtime.MemStats
 	}
 	tests := []struct {

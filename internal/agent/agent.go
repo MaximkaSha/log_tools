@@ -19,33 +19,28 @@ import (
 	"github.com/MaximkaSha/log_tools/internal/utils"
 	"github.com/caarlos0/env/v6"
 
-	//"github.com/shirou/gopsutil/mem"
-	//"github.com/shirou/gopsutil/v3/cpu"
+	// "github.com/shirou/gopsutil/mem"
+	// "github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
-//Config structure is agent configiguration.
+// Config structure is agent configiguration.
 type Config struct {
-	//Server - address and port of remote server.
-	Server string `env:"ADDRESS" envDefault:"localhost:8080"`
-	//ReportInterval - interval of log reporting.
+	Server         string        `env:"ADDRESS" envDefault:"localhost:8080"`
+	KeyFile        string        `env:"KEY" envDefault:"key.txt"`
 	ReportInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
-	//PollInterval - interval of log collecting.
-	PollInterval time.Duration `env:"POLL_INTERVAL,required" envDefault:"2s"`
-	//KeyFile - string which contains key to MAC.
-	//BUG(MAX): Again missleading naming. This NOT a path to KEY. It is string which contains bytes to HMAC.
-	KeyFile string `env:"KEY" envDefault:"key.txt"`
+	PollInterval   time.Duration `env:"POLL_INTERVAL,required" envDefault:"2s"`
 }
 
-//Agent collects runtime metrics. Main module of agent.
+// Agent collects runtime metrics. Main module of agent.
 type Agent struct {
 	logDB   []models.Metrics
-	counter int64
 	cfg     Config
+	counter int64
 }
 
-//NewAgent - Agent constructor.
+// NewAgent - Agent constructor.
 func NewAgent() Agent {
 	return Agent{
 		logDB:   []models.Metrics{},
@@ -54,7 +49,7 @@ func NewAgent() Agent {
 	}
 }
 
-//AppendMetric - add given models.Metrics to storage.
+// AppendMetric - add given models.Metrics to storage.
 func (a *Agent) AppendMetric(m models.Metrics) {
 	for i := range a.logDB {
 		if a.logDB[i].ID == m.ID {
@@ -66,17 +61,17 @@ func (a *Agent) AppendMetric(m models.Metrics) {
 	a.logDB = append(a.logDB, m)
 }
 
-//StartService - main function.
+// StartService - main function.
 func (a *Agent) StartService() {
 	var pollInterval = a.cfg.PollInterval
 	var reportInterval = a.cfg.ReportInterval
-	//var logData = new(logData)
+	// var logData = new(logData)
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
-	//	var rtm runtime.MemStats
+	// 	var rtm runtime.MemStats
 	log.Println("Logger start...")
 	tickerCollect := time.NewTicker(pollInterval)
 	tickerSend := time.NewTicker(reportInterval)
@@ -95,21 +90,20 @@ func (a *Agent) StartService() {
 	}
 }
 
-//AgentSendWorker - send all collected data by POST,JSON and batch JSON to remote server.
+// AgentSendWorker - send all collected data by POST,JSON and batch JSON to remote server.
 func (a Agent) AgentSendWorker() {
 	a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
 	a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
 	a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
 }
 
-//SendLogsbyJSONBatch - send logs to remote server by JSON batch (fastest way).
+// SendLogsbyJSONBatch - send logs to remote server by JSON batch (fastest way).
 func (a Agent) SendLogsbyJSONBatch(url string) error {
 	hasher := crypto.NewCryptoService()
 	hasher.InitCryptoService(a.cfg.KeyFile)
 	var allData = []models.Metrics{}
 	for i := range a.logDB {
-		var data = models.Metrics{}
-		data = a.logDB[i]
+		data := a.logDB[i]
 		if hasher.IsServiceEnable() {
 			_, err := hasher.Hash(&data)
 			if err != nil {
@@ -129,13 +123,12 @@ func (a Agent) SendLogsbyJSONBatch(url string) error {
 	return nil
 }
 
-//SendLogsbyJSON - send logs to remote server by JSON one by one.
+// SendLogsbyJSON - send logs to remote server by JSON one by one.
 func (a Agent) SendLogsbyJSON(url string) error {
 	hasher := crypto.NewCryptoService()
 	hasher.InitCryptoService(a.cfg.KeyFile)
 	for i := range a.logDB {
-		var data = models.Metrics{}
-		data = a.logDB[i]
+		data := a.logDB[i]
 		if hasher.IsServiceEnable() {
 			_, err := hasher.Hash(&data)
 			if err != nil {
@@ -143,16 +136,17 @@ func (a Agent) SendLogsbyJSON(url string) error {
 				continue
 			}
 		}
-		//log.Println(data)
+		// log.Println(data)
 		jData, _ := json.Marshal(data)
 
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 		if err == nil {
+			log.Println(err)
 			defer resp.Body.Close()
 		}
 	}
 	log.Println("Sended logs by POST JSON")
-	//log.Println(a.logDB)
+	// log.Println(a.logDB)
 	return nil
 }
 
@@ -165,7 +159,7 @@ func (a Agent) getPostStrByIndex(i int, url string) string {
 	return "type unknown"
 }
 
-//SendLogsbyPost - send logs to remote server one by one as POST request.
+// SendLogsbyPost - send logs to remote server one by one as POST request.
 func (a *Agent) SendLogsbyPost(sData string) error {
 	for i := range a.logDB {
 		if r, err := http.Post(a.getPostStrByIndex(i, sData), "text/plain", nil); err == nil {
@@ -173,11 +167,11 @@ func (a *Agent) SendLogsbyPost(sData string) error {
 		}
 	}
 	log.Println("Sended logs by POST param")
-	//log.Println(a.logDB)
+	// log.Println(a.logDB)
 	return nil
 }
 
-//CollectLogs - collect runtime metrics and save it to storage.
+// CollectLogs - collect runtime metrics and save it to storage.
 func (a *Agent) CollectLogs() {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
@@ -192,7 +186,7 @@ func (a *Agent) CollectLogs() {
 	var tmpFM = float64(virtualMem.Free)
 	a.AppendMetric(models.NewMetric("TotalMemory", "gauge", nil, &tmpTM, ""))
 	a.AppendMetric(models.NewMetric("TotalMemory", "gauge", nil, &tmpFM, ""))
-	//log.Println(a.logDB)
+	// log.Println(a.logDB)
 	var tmpAlloc = float64(rtm.Alloc)
 	a.AppendMetric(models.Metrics{ID: "Alloc", MType: "gauge", Delta: nil, Value: &tmpAlloc})
 	var tmpBuckHashSys = float64(rtm.BuckHashSys)
@@ -258,7 +252,6 @@ func (a *Agent) CollectLogs() {
 	a.AppendMetric(models.Metrics{ID: "FreeMemory", MType: "gauge", Delta: nil, Value: &tmpFreeMem})
 	a.AppendMetric(models.Metrics{ID: "CPUutilization1", MType: "gauge", Delta: nil, Value: &CPU[0]})
 	log.Println("Collected logs")
-	//	log.Println(a.logDB)
 }
 
 func parseCfg() Config {
@@ -270,14 +263,14 @@ func parseCfg() Config {
 			envCfg[tag] = isDefault
 		},
 	}
-	// Сначала читаем ключи
+	//  Сначала читаем ключи
 	flag.StringVar(&cfgFlag.Server, "a", "localhost:8080", "host:port (default localhost:8080)")
 	flag.DurationVar(&cfgFlag.ReportInterval, "r", time.Duration(10*time.Second), "report to server interval in seconds (default 10s)")
 	flag.DurationVar(&cfgFlag.PollInterval, "p", time.Duration(2*time.Second), "poll interval in seconds (default 2s)")
 	flag.StringVar(&cfgFlag.KeyFile, "k", "", "hmac key")
 	flag.Parse()
-	// Потом переписываем ключами из ENV, они имеют приоритет
-	// Это так не работает, т.к. есть значения по-умолчанию
+	//  Потом переписываем ключами из ENV, они имеют приоритет
+	//  Это так не работает, т.к. есть значения по-умолчанию
 	err := env.Parse(&cfg, opts)
 	if err != nil {
 		log.Fatal(err)
@@ -294,6 +287,6 @@ func parseCfg() Config {
 	if flag := flag.Lookup("k"); (flag != nil) && envCfg["KEY"] {
 		cfg.KeyFile = cfgFlag.KeyFile
 	}
-	//log.Println(cfg)
+	// log.Println(cfg)
 	return cfg
 }
