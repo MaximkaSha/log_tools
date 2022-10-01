@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"crypto/rsa"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/MaximkaSha/log_tools/internal/ciphers"
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/utils"
@@ -31,6 +33,7 @@ type Config struct {
 	KeyFile        string        `env:"KEY" envDefault:"key.txt"`
 	ReportInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
 	PollInterval   time.Duration `env:"POLL_INTERVAL,required" envDefault:"2s"`
+	PublicKeyFile  string        `env:"CRYPTO_KEY" envDefault:""`
 }
 
 // Agent collects runtime metrics. Main module of agent.
@@ -38,6 +41,7 @@ type Agent struct {
 	logDB   []models.Metrics
 	cfg     Config
 	counter int64
+	pubKey  *rsa.PublicKey
 }
 
 // NewAgent - Agent constructor.
@@ -65,7 +69,17 @@ func (a *Agent) AppendMetric(m models.Metrics) {
 func (a *Agent) StartService() {
 	var pollInterval = a.cfg.PollInterval
 	var reportInterval = a.cfg.ReportInterval
-	// var logData = new(logData)
+	log.Println(a.cfg.ReportInterval)
+	log.Println(a.cfg.PublicKeyFile)
+	if a.cfg.PublicKeyFile != "" {
+		pubKey, err := ciphers.ReadPublicKeyFromFile(a.cfg.PublicKeyFile)
+		if err != nil {
+			log.Println("loading key error!")
+		}
+		a.pubKey = pubKey
+		log.Println("public key loaded successful.")
+	}
+
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
 		syscall.SIGINT,
@@ -114,6 +128,9 @@ func (a Agent) SendLogsbyJSONBatch(url string) error {
 		allData = append(allData, data)
 	}
 	jData, _ := json.Marshal(allData)
+	if a.pubKey != nil {
+		jData = ciphers.EncryptWithPublicKey(jData, a.pubKey)
+	}
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 	if err == nil {
 		defer resp.Body.Close()
@@ -138,10 +155,11 @@ func (a Agent) SendLogsbyJSON(url string) error {
 		}
 		// log.Println(data)
 		jData, _ := json.Marshal(data)
-
+		if a.pubKey != nil {
+			jData = ciphers.EncryptWithPublicKey(jData, a.pubKey)
+		}
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 		if err == nil {
-			log.Println(err)
 			defer resp.Body.Close()
 		}
 	}
@@ -268,6 +286,7 @@ func parseCfg() Config {
 	flag.DurationVar(&cfgFlag.ReportInterval, "r", time.Duration(10*time.Second), "report to server interval in seconds (default 10s)")
 	flag.DurationVar(&cfgFlag.PollInterval, "p", time.Duration(2*time.Second), "poll interval in seconds (default 2s)")
 	flag.StringVar(&cfgFlag.KeyFile, "k", "", "hmac key")
+	flag.StringVar(&cfgFlag.PublicKeyFile, "crypto-key", "", "public key")
 	flag.Parse()
 	//  Потом переписываем ключами из ENV, они имеют приоритет
 	//  Это так не работает, т.к. есть значения по-умолчанию
@@ -287,6 +306,9 @@ func parseCfg() Config {
 	if flag := flag.Lookup("k"); (flag != nil) && envCfg["KEY"] {
 		cfg.KeyFile = cfgFlag.KeyFile
 	}
-	// log.Println(cfg)
+	if flag := flag.Lookup("crypto-key"); (flag != nil) && envCfg["CRYPTO_KEY"] {
+		cfg.PublicKeyFile = cfgFlag.PublicKeyFile
+	}
+	log.Println(cfg)
 	return cfg
 }

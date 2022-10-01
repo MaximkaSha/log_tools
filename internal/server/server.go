@@ -6,6 +6,7 @@ package server
 import (
 	"compress/flate"
 	"context"
+	"crypto/rsa"
 	"flag"
 	"fmt"
 	"log"
@@ -15,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	//"github.com/MaximkaSha/log_tools/internal/ciphers"
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/database"
 	"github.com/MaximkaSha/log_tools/internal/handlers"
@@ -27,12 +29,13 @@ import (
 
 // Config structure is server configiguration.
 type Config struct {
-	Server        string        `env:"ADDRESS" envDefault:"localhost:8080"`
-	StoreFile     string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
-	KeyFileFlag   string        `env:"KEY" envDefault:"12345678"`
-	DatabaseEnv   string        `env:"DATABASE_DSN"`
-	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`
-	RestoreFlag   bool          `env:"RESTORE" envDefault:"true"`
+	Server         string        `env:"ADDRESS" envDefault:"localhost:8080"`
+	StoreFile      string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
+	KeyFileFlag    string        `env:"KEY" envDefault:"12345678"`
+	DatabaseEnv    string        `env:"DATABASE_DSN"`
+	StoreInterval  time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`
+	RestoreFlag    bool          `env:"RESTORE" envDefault:"true"`
+	PrivateKeyFile string        `env:"CRYPTO_KEY"`
 }
 
 // Server - internal server structure.
@@ -41,6 +44,7 @@ type Server struct {
 	srv   *http.Server
 	db    *database.Database
 	cfg   Config
+	key   *rsa.PrivateKey
 }
 
 // NewServer - Server constructor.
@@ -84,6 +88,10 @@ func NewServer() Server {
 	if envCfg["KEY"] && a != nil {
 		cfg.KeyFileFlag = *keyFileArg
 	}
+	a = flag.Lookup("crypto-key")
+	if envCfg["CRYPTO_KEY"] && a != nil {
+		cfg.PrivateKeyFile = *PrivateKeyFileArg
+	}
 	var serv = Server{}
 	serv.cfg = cfg
 	var repo models.Storager
@@ -98,19 +106,20 @@ func NewServer() Server {
 	}
 	cryptoService := crypto.NewCryptoService()
 	cryptoService.InitCryptoService(cfg.KeyFileFlag)
-	handl := handlers.NewHandlers(repo, cryptoService)
+	handl := handlers.NewHandlers(repo, cryptoService, *PrivateKeyFileArg)
 	serv.handl = handl
 	serv.srv = &http.Server{}
 	return serv
 }
 
 var (
-	srvAdressArg     *string
-	storeIntervalArg *time.Duration
-	storeFileArg     *string
-	restoreFlagArg   *bool
-	keyFileArg       *string
-	databaseArg      *string
+	srvAdressArg      *string
+	storeIntervalArg  *time.Duration
+	storeFileArg      *string
+	restoreFlagArg    *bool
+	keyFileArg        *string
+	databaseArg       *string
+	PrivateKeyFileArg *string
 )
 
 func init() {
@@ -120,6 +129,7 @@ func init() {
 	restoreFlagArg = flag.Bool("r", true, "if is true restore data from env:RESTORE (default true)")
 	keyFileArg = flag.String("k", "", "hmac key")
 	databaseArg = flag.String("d", "", "string database config")
+	PrivateKeyFileArg = flag.String("crypto-key", "", "private key")
 }
 
 // StartServe - main server func.

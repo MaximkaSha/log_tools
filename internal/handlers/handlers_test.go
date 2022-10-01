@@ -144,7 +144,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 			var repoInt models.Storager
 			repo := storage.NewRepo()
 			repoInt = &repo
-			handl := NewHandlers(repoInt, crypto.NewCryptoService())
+			handl := NewHandlers(repoInt, crypto.NewCryptoService(), "")
 			mux := chi.NewRouter()
 			ctx := context.TODO()
 			// defer cancel()
@@ -528,7 +528,7 @@ func ExampleHandlers_HandlePostJSONUpdates() {
 }
 
 func NewTestServer(repo models.Storager) (*chi.Mux, *Handlers) {
-	handl := NewHandlers(repo, crypto.NewCryptoService())
+	handl := NewHandlers(repo, crypto.NewCryptoService(), "")
 	mux := chi.NewRouter()
 	mux.Post("/update/", handl.HandlePostJSONUpdate)
 	mux.Post("/value/", handl.HandlePostJSONValue)
