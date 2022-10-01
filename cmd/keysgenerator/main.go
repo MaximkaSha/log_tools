@@ -10,8 +10,8 @@ import (
 
 func main() {
 	priv, pub := ciphers.GenerateKeyPair(4096)
-	priv_pem := ciphers.ExportRsaPrivateKeyAsPemStr(priv)
-	pub_pem, _ := ciphers.ExportRsaPublicKeyAsPemStr(pub)
+	privPem := ciphers.ExportRsaPrivateKeyAsPemStr(priv)
+	pubPem, _ := ciphers.ExportRsaPublicKeyAsPemStr(pub)
 	pubKey, err := os.Create("pub.key")
 	if err != nil {
 		fmt.Println(err)
@@ -24,8 +24,8 @@ func main() {
 		privKey.Close()
 		return
 	}
-	fmt.Fprintln(pubKey, pub_pem)
-	fmt.Fprintln(privKey, priv_pem)
+	fmt.Fprintln(pubKey, pubPem)
+	fmt.Fprintln(privKey, privPem)
 	err = pubKey.Close()
 	if err != nil {
 		fmt.Println(err)

@@ -49,50 +49,6 @@ func PublicKeyToBytes(pub *rsa.PublicKey) []byte {
 	return pubBytes
 }
 
-// BytesToPrivateKey bytes to private key.
-func BytesToPrivateKey(priv []byte) *rsa.PrivateKey {
-	block, _ := pem.Decode(priv)
-	enc := x509.IsEncryptedPEMBlock(block)
-	b := block.Bytes
-	var err error
-	if enc {
-		log.Println("is encrypted pem block")
-		b, err = x509.DecryptPEMBlock(block, nil)
-		if err != nil {
-			log.Println(err)
-		}
-	}
-	key, err := x509.ParsePKCS1PrivateKey(b)
-	if err != nil {
-		log.Println(err)
-	}
-	return key
-}
-
-// BytesToPublicKey bytes to public key.
-func BytesToPublicKey(pub []byte) *rsa.PublicKey {
-	block, _ := pem.Decode(pub)
-	enc := x509.IsEncryptedPEMBlock(block)
-	b := block.Bytes
-	var err error
-	if enc {
-		log.Println("is encrypted pem block")
-		b, err = x509.DecryptPEMBlock(block, nil)
-		if err != nil {
-			log.Println(err)
-		}
-	}
-	ifc, err := x509.ParsePKIXPublicKey(b)
-	if err != nil {
-		log.Println(err)
-	}
-	key, ok := ifc.(*rsa.PublicKey)
-	if !ok {
-		log.Println("not ok")
-	}
-	return key
-}
-
 // EncryptWithPublicKey encrypts data with public key.
 func EncryptWithPublicKey(msg []byte, pub *rsa.PublicKey) []byte {
 	hash := sha512.New()
@@ -115,14 +71,14 @@ func DecryptWithPrivateKey(ciphertext []byte, priv *rsa.PrivateKey) []byte {
 
 // ExportRsaPrivateKeyAsPemStr export Private RSA key to file in PEM string.
 func ExportRsaPrivateKeyAsPemStr(privkey *rsa.PrivateKey) string {
-	privkey_bytes := x509.MarshalPKCS1PrivateKey(privkey)
-	privkey_pem := pem.EncodeToMemory(
+	privKeyBytes := x509.MarshalPKCS1PrivateKey(privkey)
+	privKeyPem := pem.EncodeToMemory(
 		&pem.Block{
 			Type:  "RSA PRIVATE KEY",
-			Bytes: privkey_bytes,
+			Bytes: privKeyBytes,
 		},
 	)
-	return string(privkey_pem)
+	return string(privKeyPem)
 }
 
 // ParseRsaPrivateKeyFromPemStr import RSA private key from string.
@@ -142,18 +98,18 @@ func ParseRsaPrivateKeyFromPemStr(privPEM string) (*rsa.PrivateKey, error) {
 
 // ExportRsaPublicKeyAsPemStr export Private RSA key to file in PEM string.
 func ExportRsaPublicKeyAsPemStr(pubkey *rsa.PublicKey) (string, error) {
-	pubkey_bytes, err := x509.MarshalPKIXPublicKey(pubkey)
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(pubkey)
 	if err != nil {
 		return "", err
 	}
-	pubkey_pem := pem.EncodeToMemory(
+	pubKeyPem := pem.EncodeToMemory(
 		&pem.Block{
 			Type:  "RSA PUBLIC KEY",
-			Bytes: pubkey_bytes,
+			Bytes: pubKeyBytes,
 		},
 	)
 
-	return string(pubkey_pem), nil
+	return string(pubKeyPem), nil
 }
 
 // ParseRsaPublicKeyFromPemStr import RSA private key from string.
