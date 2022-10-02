@@ -6,9 +6,12 @@ package server
 import (
 	"compress/flate"
 	"context"
-	"crypto/rsa"
+
+	//	"crypto/rsa"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -36,6 +39,53 @@ type Config struct {
 	StoreInterval  time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`
 	RestoreFlag    bool          `env:"RESTORE" envDefault:"true"`
 	PrivateKeyFile string        `env:"CRYPTO_KEY"`
+	configFile     string        `env:"CONFIG"`
+}
+
+func (c *Config) isDefault(flagName string, envName string) bool {
+	flagPresent := false
+	envPresent := false
+	if flag := flag.Lookup(flagName); flag != nil && flag.Value.String() != flag.DefValue {
+		flagPresent = true
+	}
+	if _, ok := os.LookupEnv(envName); ok {
+		envPresent = true
+	}
+	return flagPresent || envPresent
+}
+func (c *Config) UmarshalJSON(data []byte) (err error) {
+	var tmp struct {
+		Server         string `json:"address" env:"ADDRESS" envDefault:"localhost:8080"`
+		StoreFile      string `json:"store_file" env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
+		KeyFileFlag    string `env:"KEY" envDefault:"12345678"`
+		DatabaseEnv    string `json:"database_dsn" env:"DATABASE_DSN"`
+		StoreInterval  string `json:"store_interval" env:"STORE_INTERVAL" envDefault:"300s"`
+		RestoreFlag    bool   `json:"restore" env:"RESTORE" envDefault:"true"`
+		PrivateKeyFile string `json:"crypto_key" env:"CRYPTO_KEY"`
+		configFile     string `env:"CONFIG"`
+	}
+	if err = json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	if !c.isDefault("a", "ADDRESS") {
+		c.Server = tmp.Server
+	}
+	if !c.isDefault("f", "STORE_FILE") {
+		c.StoreFile = tmp.StoreFile
+	}
+	if !c.isDefault("d", "DATABASE_DSN") {
+		c.DatabaseEnv = tmp.DatabaseEnv
+	}
+	if !c.isDefault("i", "STORE_INTERVAL") {
+		c.StoreInterval, err = time.ParseDuration(tmp.StoreInterval)
+	}
+	if !c.isDefault("crypto-key", "CRYPTO_KEY") {
+		c.PrivateKeyFile = tmp.PrivateKeyFile
+	}
+	if !c.isDefault("r", "RESTORE") {
+		c.RestoreFlag = tmp.RestoreFlag
+	}
+	return err
 }
 
 // Server - internal server structure.
@@ -44,7 +94,7 @@ type Server struct {
 	srv   *http.Server
 	db    *database.Database
 	cfg   Config
-	key   *rsa.PrivateKey
+	//key   *rsa.PrivateKey
 }
 
 // NewServer - Server constructor.
@@ -60,7 +110,6 @@ func NewServer() Server {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	flag.Parse()
 	var a = flag.Lookup("a")
 	if envCfg["ADDRESS"] && a != nil {
@@ -92,6 +141,26 @@ func NewServer() Server {
 	if envCfg["CRYPTO_KEY"] && a != nil {
 		cfg.PrivateKeyFile = *PrivateKeyFileArg
 	}
+
+	if envCfg["CONFIG"] || a != nil {
+		cfg.configFile = *configFile
+	} else {
+		a = flag.Lookup("config")
+		if envCfg["CONFIG"] || a != nil {
+			cfg.configFile = *configFile
+		}
+	}
+	if cfg.configFile != "" {
+		jsonData, err := ioutil.ReadFile(cfg.configFile)
+		if err != nil {
+			log.Println(err)
+		}
+		err = cfg.UmarshalJSON(jsonData)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+
 	var serv = Server{}
 	serv.cfg = cfg
 	var repo models.Storager
@@ -120,6 +189,7 @@ var (
 	keyFileArg        *string
 	databaseArg       *string
 	PrivateKeyFileArg *string
+	configFile        *string
 )
 
 func init() {
@@ -130,6 +200,8 @@ func init() {
 	keyFileArg = flag.String("k", "", "hmac key")
 	databaseArg = flag.String("d", "", "string database config")
 	PrivateKeyFileArg = flag.String("crypto-key", "", "private key")
+	configFile = flag.String("c", "", "json config file path")
+	configFile = flag.String("config", "", "json config file path")
 }
 
 // StartServe - main server func.

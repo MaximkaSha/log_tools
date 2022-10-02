@@ -1,0 +1,8 @@
+{
+    "address": "localhost:8181", 
+    "restore": false, 
+    "store_interval": "3m0s", 
+    "store_file": "qqq.tmp", 
+    "database_dsn": "", 
+    "crypto_key": "priv.key" 
+} 
