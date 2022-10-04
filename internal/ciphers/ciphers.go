@@ -96,22 +96,6 @@ func ParseRsaPrivateKeyFromPemStr(privPEM string) (*rsa.PrivateKey, error) {
 	return priv, nil
 }
 
-// ExportRsaPublicKeyAsPemStr export Private RSA key to file in PEM string.
-func ExportRsaPublicKeyAsPemStr(pubkey *rsa.PublicKey) (string, error) {
-	pubKeyBytes, err := x509.MarshalPKIXPublicKey(pubkey)
-	if err != nil {
-		return "", err
-	}
-	pubKeyPem := pem.EncodeToMemory(
-		&pem.Block{
-			Type:  "RSA PUBLIC KEY",
-			Bytes: pubKeyBytes,
-		},
-	)
-
-	return string(pubKeyPem), nil
-}
-
 // ParseRsaPublicKeyFromPemStr import RSA private key from string.
 func ParseRsaPublicKeyFromPemStr(pubPEM string) (*rsa.PublicKey, error) {
 	block, _ := pem.Decode([]byte(pubPEM))

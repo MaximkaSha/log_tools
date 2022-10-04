@@ -19,6 +19,7 @@ import (
 	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/go-chi/chi/v5"
+	"github.com/openlyinc/pointy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -531,9 +532,81 @@ func NewTestServer(repo models.Storager) (*chi.Mux, *Handlers) {
 	handl := NewHandlers(repo, crypto.NewCryptoService(), "")
 	mux := chi.NewRouter()
 	mux.Post("/update/", handl.HandlePostJSONUpdate)
+	mux.Post("/updates/", handl.HandlePostJSONUpdates)
 	mux.Post("/value/", handl.HandlePostJSONValue)
 	mux.Get("/ping", handl.HandleGetPing)
 
 	return mux, &handl
 
+}
+
+func TestHandlers_HandlePostJSONUpdates(t *testing.T) {
+	type want struct {
+		contentType string
+		body        string
+		code        int
+	}
+	tests := []struct {
+		name        string
+		url         string
+		method      string
+		contentType string
+		data        string
+		want        want
+	}{
+		{
+			name: "positive json #1",
+			want: want{
+				code:        404,
+				contentType: "application/json",
+				body:        `[{"id":"Alloc","type":"gauge","value":1072448,"delta":0}]`,
+			},
+			url:         "/updates/",
+			method:      "POST",
+			data:        `{"id":"Alloc","type":"gauge"}`,
+			contentType: "application/json",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := storage.NewRepo()
+			genTestData := storage.NewRepo()
+			genTestData.AppendMetric(models.NewMetric("test", "counter", pointy.Int64(10), nil, ""))
+			genTestData.AppendMetric(models.NewMetric("test1", "gauge", nil, pointy.Float64(10), ""))
+			allData := genTestData.GetAll(context.TODO())
+			jData, _ := json.Marshal(allData)
+			request := httptest.NewRequest(http.MethodPost, tt.url, bytes.NewReader(jData))
+			request.Header.Add("Content-Type", tt.contentType)
+			w := httptest.NewRecorder()
+			srv, _ := NewTestServer(&repo)
+			srv.ServeHTTP(w, request)
+			resp := w.Result()
+			assert.Equal(t, tt.want.code, resp.StatusCode)
+			assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-type"))
+
+		})
+	}
+}
+
+func TestHandlers_HandleGetPing(t *testing.T) {
+
+	tests := []struct {
+		name string
+	}{
+		{
+			name: "pos #1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := storage.NewRepo()
+			request := httptest.NewRequest(http.MethodGet, "/ping", nil)
+			request.Header.Add("Content-Type", "text/html")
+			w := httptest.NewRecorder()
+			srv, _ := NewTestServer(&repo)
+			srv.ServeHTTP(w, request)
+			resp := w.Result()
+			assert.Equal(t, 500, resp.StatusCode)
+		})
+	}
 }

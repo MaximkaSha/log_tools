@@ -179,7 +179,7 @@ func (a Agent) SendLogsbyJSONBatch(url string) error {
 	}
 
 	log.Println("Sended logs by POST JSON Batch")
-	return nil
+	return err
 }
 
 // SendLogsbyJSON - send logs to remote server by JSON one by one.

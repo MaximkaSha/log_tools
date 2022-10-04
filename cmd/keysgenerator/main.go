@@ -11,7 +11,7 @@ import (
 func main() {
 	priv, pub := ciphers.GenerateKeyPair(4096)
 	privPem := ciphers.ExportRsaPrivateKeyAsPemStr(priv)
-	pubPem, _ := ciphers.ExportRsaPublicKeyAsPemStr(pub)
+	pubPem := ciphers.PublicKeyToBytes(pub)
 	pubKey, err := os.Create("pub.key")
 	if err != nil {
 		fmt.Println(err)
@@ -37,15 +37,5 @@ func main() {
 		return
 	}
 	fmt.Println("Key generated successfully")
-	/*
-		privNew, err := ciphers.ReadPrivateKeyFromFile("priv.key")
-		if err != nil {
-			log.Panicln(err)
-		}
-		log.Println(ciphers.ExportRsaPrivateKeyAsPemStr(privNew))
-		pubNew, err := ciphers.ReadPublicKeyFromFile("pub.key")
-		if err != nil {
-			log.Panic(err)
-		}
-		log.Println(ciphers.ExportRsaPublicKeyAsPemStr(pubNew)) */
+
 }

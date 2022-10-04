@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/MaximkaSha/log_tools/internal/models"
@@ -158,6 +159,27 @@ func TestCryptoService_IsServiceEnable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.c.IsServiceEnable(); got != tt.want {
 				t.Errorf("CryptoService.IsServiceEnable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNewCryptoService(t *testing.T) {
+	tests := []struct {
+		name string
+		want CryptoService
+	}{
+		{
+			name: "pos",
+			want: CryptoService{
+				IsEnable: false,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewCryptoService(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewCryptoService() = %v, want %v", got, tt.want)
 			}
 		})
 	}
