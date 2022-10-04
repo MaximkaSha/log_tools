@@ -581,6 +581,7 @@ func TestHandlers_HandlePostJSONUpdates(t *testing.T) {
 			srv, _ := NewTestServer(&repo)
 			srv.ServeHTTP(w, request)
 			resp := w.Result()
+			defer resp.Body.Close()
 			assert.Equal(t, tt.want.code, resp.StatusCode)
 			assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-type"))
 
@@ -589,7 +590,6 @@ func TestHandlers_HandlePostJSONUpdates(t *testing.T) {
 }
 
 func TestHandlers_HandleGetPing(t *testing.T) {
-
 	tests := []struct {
 		name string
 	}{
@@ -606,6 +606,7 @@ func TestHandlers_HandleGetPing(t *testing.T) {
 			srv, _ := NewTestServer(&repo)
 			srv.ServeHTTP(w, request)
 			resp := w.Result()
+			defer resp.Body.Close()
 			assert.Equal(t, 500, resp.StatusCode)
 		})
 	}
