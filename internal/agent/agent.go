@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -153,6 +154,29 @@ func (a Agent) AgentSendWorker() {
 	a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
 }
 
+func (a Agent) Call(url string, method string, data io.Reader) error {
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, data)
+	if err != nil {
+		log.Printf("New Req error %s", err.Error())
+		return err
+	}
+	ip, err := utils.ExternalIP()
+	if err != nil {
+		log.Printf("Getting local IP error %s", err.Error())
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("X-Real-IP", ip)
+	response, err := client.Do(req)
+	if err != nil {
+		log.Printf("Req error %s", err.Error())
+		return err
+	}
+	defer response.Body.Close()
+	return nil
+}
+
 // SendLogsbyJSONBatch - send logs to remote server by JSON batch (fastest way).
 func (a Agent) SendLogsbyJSONBatch(url string) error {
 	hasher := crypto.NewCryptoService()
@@ -173,11 +197,10 @@ func (a Agent) SendLogsbyJSONBatch(url string) error {
 	if a.pubKey != nil {
 		jData = ciphers.EncryptWithPublicKey(jData, a.pubKey)
 	}
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
-	if err == nil {
-		defer resp.Body.Close()
+	err := a.Call(url, "POST", bytes.NewBuffer(jData))
+	if err != nil {
+		log.Printf("Error: %s", err.Error())
 	}
-
 	log.Println("Sended logs by POST JSON Batch")
 	return err
 }
@@ -200,9 +223,9 @@ func (a Agent) SendLogsbyJSON(url string) error {
 		if a.pubKey != nil {
 			jData = ciphers.EncryptWithPublicKey(jData, a.pubKey)
 		}
-		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
-		if err == nil {
-			defer resp.Body.Close()
+		err := a.Call(url, "POST", bytes.NewBuffer(jData))
+		if err != nil {
+			log.Printf("Error: %s", err.Error())
 		}
 	}
 	log.Println("Sended logs by POST JSON")
@@ -222,8 +245,8 @@ func (a Agent) getPostStrByIndex(i int, url string) string {
 // SendLogsbyPost - send logs to remote server one by one as POST request.
 func (a *Agent) SendLogsbyPost(sData string) error {
 	for i := range a.logDB {
-		if r, err := http.Post(a.getPostStrByIndex(i, sData), "text/plain", nil); err == nil {
-			r.Body.Close()
+		if err := a.Call(a.getPostStrByIndex(i, sData), "GET", nil); err != nil {
+			log.Printf("Error: %s", err.Error())
 		}
 	}
 	log.Println("Sended logs by POST param")

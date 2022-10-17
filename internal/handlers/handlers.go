@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -25,6 +26,7 @@ type Handlers struct {
 	handlers      *http.ServeMux
 	DB            *database.Database
 	SyncFile      string
+	TrustedSubnet *net.IPNet
 	cryptoService crypto.CryptoService
 	key           *rsa.PrivateKey
 }
@@ -309,4 +311,18 @@ func (h *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+}
+
+func (h *Handlers) CheckIPMiddleWare(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ipStr := r.Header.Get("X-Real-IP")
+		ip := net.ParseIP(ipStr)
+		if ip == nil || !h.TrustedSubnet.Contains(ip) {
+			log.Printf("Req X-Real-IP: %s not in trusted subnet %s", ipStr, h.TrustedSubnet.String())
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

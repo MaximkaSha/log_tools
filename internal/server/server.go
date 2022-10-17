@@ -6,6 +6,7 @@ package server
 import (
 	"compress/flate"
 	"context"
+	"net"
 
 	//	"crypto/rsa"
 	"encoding/json"
@@ -40,6 +41,7 @@ type Config struct {
 	RestoreFlag    bool          `env:"RESTORE" envDefault:"true"`
 	PrivateKeyFile string        `env:"CRYPTO_KEY"`
 	configFile     string        `env:"CONFIG"`
+	TrustedSubnet  string        `env:"TRUSTED_SUBNET"`
 }
 
 func (c *Config) isDefault(flagName string, envName string) bool {
@@ -63,6 +65,7 @@ func (c *Config) UmarshalJSON(data []byte) (err error) {
 		RestoreFlag    bool   `json:"restore" env:"RESTORE" envDefault:"true"`
 		PrivateKeyFile string `json:"crypto_key" env:"CRYPTO_KEY"`
 		configFile     string `env:"CONFIG"`
+		TrustedSubnet  string `json:"trusted_subnet" env:"TRUSTED_SUBNET"`
 	}
 	if err = json.Unmarshal(data, &tmp); err != nil {
 		return err
@@ -129,9 +132,12 @@ func NewServer() Server {
 		cfg.StoreFile = *storeFileArg
 	}
 	a = flag.Lookup("r")
-
 	if envCfg["RESTORE"] && a != nil {
 		cfg.RestoreFlag = *restoreFlagArg
+	}
+	a = flag.Lookup("t")
+	if envCfg["TRUSTED_SUBNET"] || a != nil {
+		cfg.TrustedSubnet = *trustedSubnet
 	}
 	a = flag.Lookup("k")
 	if envCfg["KEY"] && a != nil {
@@ -160,7 +166,6 @@ func NewServer() Server {
 			log.Println(err)
 		}
 	}
-
 	var serv = Server{}
 	serv.cfg = cfg
 	var repo models.Storager
@@ -190,6 +195,7 @@ var (
 	databaseArg       *string
 	PrivateKeyFileArg *string
 	configFile        *string
+	trustedSubnet     *string
 )
 
 func init() {
@@ -202,6 +208,7 @@ func init() {
 	PrivateKeyFileArg = flag.String("crypto-key", "", "private key")
 	configFile = flag.String("c", "", "json config file path")
 	configFile = flag.String("config", "", "json config file path")
+	trustedSubnet = flag.String("t", "", "trusted subnet")
 }
 
 // StartServe - main server func.
@@ -222,6 +229,18 @@ func (s *Server) StartServe() {
 	mux := chi.NewRouter()
 	compressor := middleware.NewCompressor(flate.DefaultCompression)
 	mux.Use(compressor.Handler)
+	if s.cfg.TrustedSubnet != "" {
+		_, ipRange, err := net.ParseCIDR(s.cfg.TrustedSubnet)
+		if err == nil {
+			log.Printf("trusted subnet set: %s ", ipRange.String())
+			s.handl.TrustedSubnet = ipRange
+			mux.Use(s.handl.CheckIPMiddleWare)
+		} else {
+			log.Printf("Error parsing CIDR: %s", err)
+			os.Exit(1)
+		}
+
+	}
 	mux.Post("/update/{type}/{name}/{value}", s.handl.HandleUpdate)
 	mux.Get("/value/{type}/{name}", s.handl.HandleGetUpdate)
 	mux.Get("/", s.handl.HandleGetHome)
