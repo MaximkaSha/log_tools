@@ -2,9 +2,11 @@ package agent
 
 import (
 	"bytes"
+	"crypto/rsa"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -14,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/MaximkaSha/log_tools/internal/ciphers"
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
 	"github.com/MaximkaSha/log_tools/internal/utils"
@@ -27,10 +30,52 @@ import (
 
 // Config structure is agent configiguration.
 type Config struct {
-	Server         string        `env:"ADDRESS" envDefault:"localhost:8080"`
+	Server         string        `json:"address" env:"ADDRESS" envDefault:"localhost:8080"`
 	KeyFile        string        `env:"KEY" envDefault:"key.txt"`
-	ReportInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
-	PollInterval   time.Duration `env:"POLL_INTERVAL,required" envDefault:"2s"`
+	ReportInterval time.Duration `json:"report_interval" env:"REPORT_INTERVAL" envDefault:"10s"`
+	PollInterval   time.Duration `json:"poll_interval" env:"POLL_INTERVAL,required" envDefault:"2s"`
+	PublicKeyFile  string        `json:"crypto_key" env:"CRYPTO_KEY" envDefault:""`
+	configFile     string        `env:"CONFIG"`
+}
+
+func (c *Config) isDefault(flagName string, envName string) bool {
+	flagPresent := false
+	envPresent := false
+	if flag := flag.Lookup(flagName); flag != nil && flag.Value.String() != flag.DefValue {
+		flagPresent = true
+	}
+	if _, ok := os.LookupEnv(envName); ok {
+		envPresent = true
+	}
+	return flagPresent || envPresent
+}
+func (c *Config) UmarshalJSON(data []byte) (err error) {
+	var tmp struct {
+		Server         string `json:"address" env:"ADDRESS" envDefault:"localhost:8080"`
+		KeyFile        string `env:"KEY" envDefault:"key.txt"`
+		ReportInterval string `json:"report_interval" env:"REPORT_INTERVAL" envDefault:"10s"`
+		PollInterval   string `json:"poll_interval" env:"POLL_INTERVAL,required" envDefault:"2s"`
+		PublicKeyFile  string `json:"crypto_key" env:"CRYPTO_KEY" envDefault:""`
+	}
+	if err = json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	if !c.isDefault("a", "ADDRESS") {
+		c.Server = tmp.Server
+	}
+	if !c.isDefault("r", "REPORT_INTERVAL") {
+		c.ReportInterval, err = time.ParseDuration(tmp.ReportInterval)
+		if err != nil {
+			return err
+		}
+	}
+	if !c.isDefault("p", "POLL_INTERVAL") {
+		c.PollInterval, err = time.ParseDuration(tmp.PollInterval)
+	}
+	if !c.isDefault("crypto-key", "CRYPTO_KEY") {
+		c.PublicKeyFile = tmp.PublicKeyFile
+	}
+	return err
 }
 
 // Agent collects runtime metrics. Main module of agent.
@@ -38,6 +83,7 @@ type Agent struct {
 	logDB   []models.Metrics
 	cfg     Config
 	counter int64
+	pubKey  *rsa.PublicKey
 }
 
 // NewAgent - Agent constructor.
@@ -65,7 +111,17 @@ func (a *Agent) AppendMetric(m models.Metrics) {
 func (a *Agent) StartService() {
 	var pollInterval = a.cfg.PollInterval
 	var reportInterval = a.cfg.ReportInterval
-	// var logData = new(logData)
+	log.Println(a.cfg.ReportInterval)
+	log.Println(a.cfg.PublicKeyFile)
+	if a.cfg.PublicKeyFile != "" {
+		pubKey, err := ciphers.ReadPublicKeyFromFile(a.cfg.PublicKeyFile)
+		if err != nil {
+			log.Println("loading key error!")
+		}
+		a.pubKey = pubKey
+		log.Println("public key loaded successful.")
+	}
+
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
 		syscall.SIGINT,
@@ -114,13 +170,16 @@ func (a Agent) SendLogsbyJSONBatch(url string) error {
 		allData = append(allData, data)
 	}
 	jData, _ := json.Marshal(allData)
+	if a.pubKey != nil {
+		jData = ciphers.EncryptWithPublicKey(jData, a.pubKey)
+	}
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 	if err == nil {
 		defer resp.Body.Close()
 	}
 
 	log.Println("Sended logs by POST JSON Batch")
-	return nil
+	return err
 }
 
 // SendLogsbyJSON - send logs to remote server by JSON one by one.
@@ -138,10 +197,11 @@ func (a Agent) SendLogsbyJSON(url string) error {
 		}
 		// log.Println(data)
 		jData, _ := json.Marshal(data)
-
+		if a.pubKey != nil {
+			jData = ciphers.EncryptWithPublicKey(jData, a.pubKey)
+		}
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jData))
 		if err == nil {
-			log.Println(err)
 			defer resp.Body.Close()
 		}
 	}
@@ -264,13 +324,15 @@ func parseCfg() Config {
 		},
 	}
 	//  Сначала читаем ключи
+
 	flag.StringVar(&cfgFlag.Server, "a", "localhost:8080", "host:port (default localhost:8080)")
 	flag.DurationVar(&cfgFlag.ReportInterval, "r", time.Duration(10*time.Second), "report to server interval in seconds (default 10s)")
 	flag.DurationVar(&cfgFlag.PollInterval, "p", time.Duration(2*time.Second), "poll interval in seconds (default 2s)")
 	flag.StringVar(&cfgFlag.KeyFile, "k", "", "hmac key")
+	flag.StringVar(&cfgFlag.PublicKeyFile, "crypto-key", "", "public key")
+	flag.StringVar(&cfg.configFile, "c", "", "json config file path")
+	flag.StringVar(&cfg.configFile, "config", "", "json config file path")
 	flag.Parse()
-	//  Потом переписываем ключами из ENV, они имеют приоритет
-	//  Это так не работает, т.к. есть значения по-умолчанию
 	err := env.Parse(&cfg, opts)
 	if err != nil {
 		log.Fatal(err)
@@ -287,6 +349,18 @@ func parseCfg() Config {
 	if flag := flag.Lookup("k"); (flag != nil) && envCfg["KEY"] {
 		cfg.KeyFile = cfgFlag.KeyFile
 	}
-	// log.Println(cfg)
+	if flag := flag.Lookup("crypto-key"); (flag != nil) && envCfg["CRYPTO_KEY"] {
+		cfg.PublicKeyFile = cfgFlag.PublicKeyFile
+	}
+	if cfg.configFile != "" {
+		jsonData, err := ioutil.ReadFile(cfg.configFile)
+		if err != nil {
+			log.Println(err)
+		}
+		err = cfg.UmarshalJSON(jsonData)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 	return cfg
 }

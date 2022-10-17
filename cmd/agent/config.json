@@ -1,0 +1,6 @@
+{
+    "address": "localhost:8080", 
+    "report_interval": "11s", 
+    "poll_interval": "4s", 
+    "crypto_key": "pub.key" 
+}

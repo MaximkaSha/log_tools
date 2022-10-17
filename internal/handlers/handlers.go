@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"context"
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/MaximkaSha/log_tools/internal/ciphers"
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/database"
 	"github.com/MaximkaSha/log_tools/internal/models"
@@ -24,16 +26,32 @@ type Handlers struct {
 	DB            *database.Database
 	SyncFile      string
 	cryptoService crypto.CryptoService
+	key           *rsa.PrivateKey
 }
 
 //  NewHandlers constrcutor for Handlers.
-func NewHandlers(repo models.Storager, cryptoService crypto.CryptoService) Handlers {
+func NewHandlers(repo models.Storager, cryptoService crypto.CryptoService, keyFile string) Handlers {
+	if keyFile != "" {
+		privKey, err := ciphers.ReadPrivateKeyFromFile(keyFile)
+		if err != nil {
+			log.Println("Error while loading private key")
+		}
+		handl := http.NewServeMux()
+		return Handlers{
+			handlers:      handl,
+			Repo:          repo,
+			SyncFile:      "",
+			cryptoService: cryptoService,
+			key:           privKey,
+		}
+	}
 	handl := http.NewServeMux()
 	return Handlers{
 		handlers:      handl,
 		Repo:          repo,
 		SyncFile:      "",
 		cryptoService: cryptoService,
+		key:           nil,
 	}
 }
 
@@ -89,11 +107,26 @@ func (h *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data = new(models.Metrics)
-		decoder := json.NewDecoder(r.Body)
-		err := decoder.Decode(&data)
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			return
+		if h.key != nil {
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				log.Println("body reading error")
+			}
+			body = ciphers.DecryptWithPrivateKey(body, h.key)
+			err = json.Unmarshal(body, &data)
+			if err != nil {
+				log.Println("body parsing error")
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			log.Println("Data deciphered successful!")
+		} else {
+			decoder := json.NewDecoder(r.Body)
+			err := decoder.Decode(&data)
+			if err != nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 		}
 		if h.cryptoService.IsEnable {
 			if !h.cryptoService.CheckHash(*data) {
@@ -167,7 +200,6 @@ func (h *Handlers) HandleGetHome(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	repo := h.Repo.GetAll(ctx)
-	log.Println(repo)
 	allData, _ := json.MarshalIndent(repo, "", "    ")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(allData))
@@ -217,7 +249,27 @@ func (h *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Content-Type") == "application/json" {
 		var data models.MetricsDB
-		content, err := ioutil.ReadAll(r.Body)
+		if h.key != nil {
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				log.Println("body reading error")
+			}
+			body = ciphers.DecryptWithPrivateKey(body, h.key)
+			err = json.Unmarshal(body, &data)
+			if err != nil {
+				log.Println("body parsing error")
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		} else {
+			decoder := json.NewDecoder(r.Body)
+			err := decoder.Decode(&data)
+			if err != nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+		}
+		/* content, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -226,7 +278,7 @@ func (h *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request)
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
-		}
+		} */
 		if h.cryptoService.IsEnable {
 			for k := range data {
 				if !h.cryptoService.CheckHash(data[k]) {
@@ -239,7 +291,7 @@ func (h *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request)
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		err = h.Repo.BatchInsert(ctx, data)
+		err := h.Repo.BatchInsert(ctx, data)
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
