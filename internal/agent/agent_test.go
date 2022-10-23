@@ -1,11 +1,17 @@
 package agent
 
 import (
+	"crypto/rsa"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/MaximkaSha/log_tools/internal/models"
+	pb "github.com/MaximkaSha/log_tools/internal/proto"
 	"github.com/openlyinc/pointy"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestAgent_CollectLogs(t *testing.T) {
@@ -290,6 +296,138 @@ func TestAgent_SendLogsbyPost(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := tt.a.SendLogsbyPost(tt.args.sData); (err != nil) != tt.wantErr {
 				t.Errorf("Agent.SendLogsbyPost() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestAgent_StartService(t *testing.T) {
+	tests := []struct {
+		name string
+		a    *Agent
+	}{
+		{
+			name: "pos",
+			a: &Agent{
+				logDB:   []models.Metrics{},
+				cfg:     Config{ReportInterval: time.Duration(time.Second * 100), PollInterval: time.Duration(time.Minute * 100)},
+				counter: 0,
+				pubKey:  &rsa.PublicKey{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			go tt.a.StartService()
+		})
+	}
+}
+
+func TestAgent_AgentSendWorker(t *testing.T) {
+	conn, err := grpc.Dial(":3200", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		fmt.Println("error")
+		return
+	}
+	type args struct {
+		c pb.MetricsClient
+	}
+	tests := []struct {
+		name string
+		a    Agent
+		args args
+	}{
+		{
+			name: "pos",
+			a: Agent{
+				logDB:   []models.Metrics{models.NewMetric("test", "not a type", pointy.Int64(10), pointy.Float64(10), "")},
+				cfg:     Config{ReportInterval: time.Duration(time.Second * 100), PollInterval: time.Duration(time.Minute * 100), PublicKeyFile: "12345679"},
+				counter: 0,
+			},
+			args: args{
+				c: pb.NewMetricsClient(conn),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			go tt.a.AgentSendWorker(tt.args.c)
+		})
+	}
+}
+
+func TestAgent_SendLogsbyGRPC(t *testing.T) {
+
+	conn, err := grpc.Dial(":3200", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		fmt.Println("error")
+		return
+	}
+	type args struct {
+		c pb.MetricsClient
+	}
+	tests := []struct {
+		name    string
+		a       Agent
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "pos",
+			a: Agent{
+				logDB:   []models.Metrics{models.NewMetric("test", "not a type", pointy.Int64(10), pointy.Float64(10), "")},
+				cfg:     Config{ReportInterval: time.Duration(time.Second * 100), PollInterval: time.Duration(time.Minute * 100), PublicKeyFile: "12345679"},
+				counter: 0,
+				pubKey:  &rsa.PublicKey{},
+			},
+			args: args{
+				c: pb.NewMetricsClient(conn),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.a.SendLogsbyGRPC(tt.args.c); (err != nil) != tt.wantErr {
+				t.Errorf("Agent.SendLogsbyGRPC() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestAgent_SendLogsbyGRPCBatch(t *testing.T) {
+	conn, err := grpc.Dial(":3200", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		fmt.Println("error")
+		return
+	}
+	type args struct {
+		c pb.MetricsClient
+	}
+	tests := []struct {
+		name    string
+		a       Agent
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "pos",
+			a: Agent{
+				logDB:   []models.Metrics{models.NewMetric("test", "not a type", pointy.Int64(10), pointy.Float64(10), "")},
+				cfg:     Config{ReportInterval: time.Duration(time.Second * 100), PollInterval: time.Duration(time.Minute * 100), PublicKeyFile: "123456787"},
+				counter: 0,
+				pubKey:  &rsa.PublicKey{},
+			},
+			args: args{
+				c: pb.NewMetricsClient(conn),
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.a.SendLogsbyGRPCBatch(tt.args.c); (err != nil) != tt.wantErr {
+				t.Errorf("Agent.SendLogsbyGRPC() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

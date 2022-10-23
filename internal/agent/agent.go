@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"context"
 	"crypto/rsa"
 	"encoding/json"
 	"flag"
@@ -14,19 +15,22 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/MaximkaSha/log_tools/internal/ciphers"
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/models"
+	pb "github.com/MaximkaSha/log_tools/internal/proto"
 	"github.com/MaximkaSha/log_tools/internal/utils"
 	"github.com/caarlos0/env/v6"
-
-	// "github.com/shirou/gopsutil/mem"
-	// "github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 // Config structure is agent configiguration.
@@ -36,6 +40,7 @@ type Config struct {
 	ReportInterval time.Duration `json:"report_interval" env:"REPORT_INTERVAL" envDefault:"10s"`
 	PollInterval   time.Duration `json:"poll_interval" env:"POLL_INTERVAL,required" envDefault:"2s"`
 	PublicKeyFile  string        `json:"crypto_key" env:"CRYPTO_KEY" envDefault:""`
+	CertGRPCFile   string        `json:"cert" env:"CERT_FILE" envDefault:""`
 	configFile     string        `env:"CONFIG"`
 }
 
@@ -57,6 +62,7 @@ func (c *Config) UmarshalJSON(data []byte) (err error) {
 		ReportInterval string `json:"report_interval" env:"REPORT_INTERVAL" envDefault:"10s"`
 		PollInterval   string `json:"poll_interval" env:"POLL_INTERVAL,required" envDefault:"2s"`
 		PublicKeyFile  string `json:"crypto_key" env:"CRYPTO_KEY" envDefault:""`
+		CertGRPCFile   string `json:"cert" env:"CERT_FILE" envDefault:""`
 	}
 	if err = json.Unmarshal(data, &tmp); err != nil {
 		return err
@@ -76,6 +82,9 @@ func (c *Config) UmarshalJSON(data []byte) (err error) {
 	if !c.isDefault("crypto-key", "CRYPTO_KEY") {
 		c.PublicKeyFile = tmp.PublicKeyFile
 	}
+	if !c.isDefault("cert", "CERT_FILE") {
+		c.CertGRPCFile = tmp.CertGRPCFile
+	}
 	return err
 }
 
@@ -85,14 +94,21 @@ type Agent struct {
 	cfg     Config
 	counter int64
 	pubKey  *rsa.PublicKey
+	IP      string
 }
 
 // NewAgent - Agent constructor.
 func NewAgent() Agent {
+	ip, err := utils.ExternalIP()
+	if err != nil {
+		ip = ""
+		log.Println("cant get Ip!")
+	}
 	return Agent{
 		logDB:   []models.Metrics{},
 		counter: 0,
 		cfg:     parseCfg(),
+		IP:      ip,
 	}
 }
 
@@ -112,8 +128,7 @@ func (a *Agent) AppendMetric(m models.Metrics) {
 func (a *Agent) StartService() {
 	var pollInterval = a.cfg.PollInterval
 	var reportInterval = a.cfg.ReportInterval
-	log.Println(a.cfg.ReportInterval)
-	log.Println(a.cfg.PublicKeyFile)
+	creds := insecure.NewCredentials()
 	if a.cfg.PublicKeyFile != "" {
 		pubKey, err := ciphers.ReadPublicKeyFromFile(a.cfg.PublicKeyFile)
 		if err != nil {
@@ -122,7 +137,14 @@ func (a *Agent) StartService() {
 		a.pubKey = pubKey
 		log.Println("public key loaded successful.")
 	}
-
+	if a.cfg.CertGRPCFile != "" {
+		credsTmp, err := credentials.NewClientTLSFromFile(a.cfg.CertGRPCFile, "")
+		if err != nil {
+			log.Printf("loading GRPC key error: %s", err.Error())
+		}
+		creds = credsTmp
+		log.Println("TLS cert for GRPC loaded.")
+	}
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
 		syscall.SIGINT,
@@ -130,6 +152,18 @@ func (a *Agent) StartService() {
 		syscall.SIGQUIT)
 	// 	var rtm runtime.MemStats
 	log.Println("Logger start...")
+	// Start gRPC client
+	fqdn := strings.Split(a.cfg.Server, ":")
+	conn, err := grpc.Dial(fqdn[0]+":3200", grpc.WithTransportCredentials(creds))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	// получаем переменную интерфейсного типа UsersClient,
+	// через которую будем отправлять сообщения
+	c := pb.NewMetricsClient(conn)
+
 	tickerCollect := time.NewTicker(pollInterval)
 	tickerSend := time.NewTicker(reportInterval)
 	defer tickerCollect.Stop()
@@ -139,7 +173,7 @@ func (a *Agent) StartService() {
 		case <-tickerCollect.C:
 			go a.CollectLogs()
 		case <-tickerSend.C:
-			go a.AgentSendWorker()
+			go a.AgentSendWorker(c)
 		case <-sigc:
 			log.Println("Got quit signal.")
 			return
@@ -148,10 +182,12 @@ func (a *Agent) StartService() {
 }
 
 // AgentSendWorker - send all collected data by POST,JSON and batch JSON to remote server.
-func (a Agent) AgentSendWorker() {
+func (a Agent) AgentSendWorker(c pb.MetricsClient) {
+	a.SendLogsbyGRPC(c)
 	a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
 	a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
 	a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
+	a.SendLogsbyGRPCBatch(c)
 }
 
 func (a Agent) Call(url string, method string, data io.Reader) error {
@@ -161,7 +197,7 @@ func (a Agent) Call(url string, method string, data io.Reader) error {
 		log.Printf("New Req error %s", err.Error())
 		return err
 	}
-	ip, err := utils.ExternalIP()
+	ip := a.IP
 	if err != nil {
 		log.Printf("Getting local IP error %s", err.Error())
 		return err
@@ -231,6 +267,61 @@ func (a Agent) SendLogsbyJSON(url string) error {
 	log.Println("Sended logs by POST JSON")
 	// log.Println(a.logDB)
 	return nil
+}
+
+// SendLogsbyGRPC - send logs to a remote server by gRPC
+func (a Agent) SendLogsbyGRPC(c pb.MetricsClient) error {
+	md := metadata.New(map[string]string{"X-Real-IP": a.IP})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	hasher := crypto.NewCryptoService()
+	hasher.InitCryptoService(a.cfg.KeyFile)
+	for i := range a.logDB {
+		data := a.logDB[i]
+		if hasher.IsServiceEnable() {
+			_, err := hasher.Hash(&data)
+			if err != nil {
+				log.Println("Hasher error!")
+				continue
+			}
+		}
+		_, err := c.AddMetric(ctx, &pb.AddMetricRequest{
+			Metric: data.ToProto(),
+		})
+		if err != nil {
+			log.Printf("Error: %s", err.Error())
+		}
+	}
+	log.Println("Sended logs by GRPC")
+	return nil
+}
+
+func (a Agent) SendLogsbyGRPCBatch(c pb.MetricsClient) error {
+	md := metadata.New(map[string]string{"X-Real-IP": a.IP})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+	hasher := crypto.NewCryptoService()
+	hasher.InitCryptoService(a.cfg.KeyFile)
+	var allData = []*pb.Metric{}
+	for i := range a.logDB {
+		data := a.logDB[i]
+		if hasher.IsServiceEnable() {
+			_, err := hasher.Hash(&data)
+			if err != nil {
+				log.Println("Hasher error!")
+				continue
+			}
+
+		}
+		allData = append(allData, data.ToProto())
+	}
+	_, err := c.AddMetrics(ctx, &pb.AddMetricsRequest{
+		Metrics: allData,
+		Size:    int64(len(allData)),
+	})
+	if err != nil {
+		log.Printf("Error: %s", err.Error())
+	}
+	log.Println("Sended logs by  GRPC  Batch")
+	return err
 }
 
 func (a Agent) getPostStrByIndex(i int, url string) string {
@@ -355,6 +446,7 @@ func parseCfg() Config {
 	flag.StringVar(&cfgFlag.PublicKeyFile, "crypto-key", "", "public key")
 	flag.StringVar(&cfg.configFile, "c", "", "json config file path")
 	flag.StringVar(&cfg.configFile, "config", "", "json config file path")
+	flag.StringVar(&cfgFlag.CertGRPCFile, "cert", "", "path to GRPC auth cert file")
 	flag.Parse()
 	err := env.Parse(&cfg, opts)
 	if err != nil {
@@ -374,6 +466,9 @@ func parseCfg() Config {
 	}
 	if flag := flag.Lookup("crypto-key"); (flag != nil) && envCfg["CRYPTO_KEY"] {
 		cfg.PublicKeyFile = cfgFlag.PublicKeyFile
+	}
+	if flag := flag.Lookup("cert"); (flag != nil) && envCfg["CERT_FILE"] {
+		cfg.CertGRPCFile = cfgFlag.CertGRPCFile
 	}
 	if cfg.configFile != "" {
 		jsonData, err := ioutil.ReadFile(cfg.configFile)

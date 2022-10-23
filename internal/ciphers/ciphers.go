@@ -5,12 +5,16 @@ import (
 	"crypto/rsa"
 	"crypto/sha512"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"hash"
 	"io"
 	"io/ioutil"
 	"log"
+	"math/big"
+	"os"
+	"time"
 )
 
 // GenerateKeyPair generates a new key pair.
@@ -175,4 +179,72 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, private *rsa.PrivateKey, msg 
 	}
 
 	return decryptedBytes, nil
+}
+
+func GenerateTlsCert(key rsa.PrivateKey) ([]byte, []byte) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		log.Fatalf("invalid key pair: %v", err)
+	}
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+
+	//	rootTLSCert, err := tls.X509KeyPair(rootCertPEM, key)
+	if err != nil {
+		log.Fatalf("invalid key pair: %v", err)
+	}
+	if err != nil {
+		log.Fatal("Cannot genereta serial number")
+		return nil, nil
+	}
+	keyUsage := x509.KeyUsageDigitalSignature
+	// Only RSA subject keys should have the KeyEncipherment KeyUsage bits set. In
+	// the context of TLS this KeyUsage is particular to RSA key exchange and
+	// authentication.
+	keyUsage |= x509.KeyUsageKeyEncipherment
+	tml := x509.Certificate{
+		// you can add any attr that you need
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().AddDate(5, 0, 0),
+		// you have to generate a different serial number each execution
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName:   "Logs Tool",
+			Organization: []string{"Max Co."},
+		},
+		KeyUsage:              keyUsage,
+		BasicConstraintsValid: true,
+	}
+	tml.IsCA = true
+	tml.KeyUsage |= x509.KeyUsageCertSign
+	nameDNS := []string{}
+	nameDNS = append(nameDNS, "localhost")
+	tml.DNSNames = nameDNS
+
+	cert, err := x509.CreateCertificate(rand.Reader, &tml, &tml, &priv.PublicKey, priv)
+	if err != nil {
+		log.Fatal("Certificate cannot be created. ", err.Error())
+	}
+
+	// Generate a pem block with the certificate
+	certPem := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert,
+	})
+
+	keyOut, err := os.OpenFile("key.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		log.Fatalf("Failed to open key.pem for writing: %v", err)
+	}
+	privBytes, err := x509.MarshalPKCS8PrivateKey(priv)
+	if err != nil {
+		log.Fatalf("Unable to marshal private key: %v", err)
+	}
+	if err := pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privBytes}); err != nil {
+		log.Fatalf("Failed to write data to key.pem: %v", err)
+	}
+	if err := keyOut.Close(); err != nil {
+		log.Fatalf("Error closing key.pem: %v", err)
+	}
+	return cert, certPem
 }

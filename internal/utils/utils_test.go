@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/hex"
 	"errors"
+	"net"
 	"testing"
 )
 
@@ -86,6 +87,30 @@ func TestCheckError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			CheckError(tt.args)
+		})
+	}
+}
+
+func TestExternalIP(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{
+			name:    "pos #1",
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ExternalIP()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ExternalIP() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if net.ParseIP(got) == nil {
+				t.Errorf("ExternalIP() = %v", got)
+			}
 		})
 	}
 }

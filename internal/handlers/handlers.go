@@ -27,7 +27,7 @@ type Handlers struct {
 	DB            *database.Database
 	SyncFile      string
 	TrustedSubnet *net.IPNet
-	cryptoService crypto.CryptoService
+	CryptoService crypto.CryptoService
 	key           *rsa.PrivateKey
 }
 
@@ -43,7 +43,7 @@ func NewHandlers(repo models.Storager, cryptoService crypto.CryptoService, keyFi
 			handlers:      handl,
 			Repo:          repo,
 			SyncFile:      "",
-			cryptoService: cryptoService,
+			CryptoService: cryptoService,
 			key:           privKey,
 		}
 	}
@@ -52,7 +52,7 @@ func NewHandlers(repo models.Storager, cryptoService crypto.CryptoService, keyFi
 		handlers:      handl,
 		Repo:          repo,
 		SyncFile:      "",
-		cryptoService: cryptoService,
+		CryptoService: cryptoService,
 		key:           nil,
 	}
 }
@@ -73,7 +73,7 @@ func (h *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { // sho
 		return
 	}
 	var data models.Metrics
-	if h.cryptoService.IsServiceEnable() {
+	if h.CryptoService.IsServiceEnable() {
 		data.ID = nameVal
 		data.MType = typeVal
 		switch data.MType {
@@ -84,7 +84,7 @@ func (h *Handlers) HandleUpdate(w http.ResponseWriter, r *http.Request) { // sho
 			tmp, _ := strconv.ParseInt(valueVal, 10, 64)
 			data.Delta = &tmp
 		}
-		h.cryptoService.Hash(&data)
+		h.CryptoService.Hash(&data)
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -130,8 +130,8 @@ func (h *Handlers) HandlePostJSONUpdate(w http.ResponseWriter, r *http.Request) 
 				return
 			}
 		}
-		if h.cryptoService.IsEnable {
-			if !h.cryptoService.CheckHash(*data) {
+		if h.CryptoService.IsEnable {
+			if !h.CryptoService.CheckHash(*data) {
 				log.Println("Sing check fail!")
 				w.WriteHeader(http.StatusBadRequest)
 				return
@@ -168,8 +168,8 @@ func (h *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if d, err := h.Repo.GetMetric(*data); err == nil {
-			if h.cryptoService.IsEnable {
-				_, err = h.cryptoService.Hash(&d)
+			if h.CryptoService.IsEnable {
+				_, err = h.CryptoService.Hash(&d)
 				if err != nil {
 					log.Println("Hasher error!")
 					w.WriteHeader(http.StatusInternalServerError)
@@ -181,7 +181,7 @@ func (h *Handlers) HandlePostJSONValue(w http.ResponseWriter, r *http.Request) {
 			w.Write(jData)
 			return
 		} else {
-			_, err = h.cryptoService.Hash(&d)
+			_, err = h.CryptoService.Hash(&d)
 			if err != nil {
 				log.Println("Hasher error!")
 				w.WriteHeader(http.StatusInternalServerError)
@@ -281,9 +281,9 @@ func (h *Handlers) HandlePostJSONUpdates(w http.ResponseWriter, r *http.Request)
 			w.WriteHeader(http.StatusNotFound)
 			return
 		} */
-		if h.cryptoService.IsEnable {
+		if h.CryptoService.IsEnable {
 			for k := range data {
-				if !h.cryptoService.CheckHash(data[k]) {
+				if !h.CryptoService.CheckHash(data[k]) {
 					log.Println("Sing check fail!")
 					w.WriteHeader(http.StatusBadRequest)
 					return

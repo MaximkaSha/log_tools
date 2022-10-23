@@ -7,6 +7,7 @@ import (
 	"compress/flate"
 	"context"
 	"net"
+	"strings"
 
 	//	"crypto/rsa"
 	"encoding/json"
@@ -20,28 +21,36 @@ import (
 	"syscall"
 	"time"
 
-	//"github.com/MaximkaSha/log_tools/internal/ciphers"
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/database"
 	"github.com/MaximkaSha/log_tools/internal/handlers"
 	"github.com/MaximkaSha/log_tools/internal/models"
+	pb "github.com/MaximkaSha/log_tools/internal/proto"
 	"github.com/MaximkaSha/log_tools/internal/storage"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 // Config structure is server configiguration.
 type Config struct {
-	Server         string        `env:"ADDRESS" envDefault:"localhost:8080"`
-	StoreFile      string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
-	KeyFileFlag    string        `env:"KEY" envDefault:"12345678"`
-	DatabaseEnv    string        `env:"DATABASE_DSN"`
-	StoreInterval  time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`
-	RestoreFlag    bool          `env:"RESTORE" envDefault:"true"`
-	PrivateKeyFile string        `env:"CRYPTO_KEY"`
-	configFile     string        `env:"CONFIG"`
-	TrustedSubnet  string        `env:"TRUSTED_SUBNET"`
+	Server          string        `env:"ADDRESS" envDefault:"localhost:8080"`
+	StoreFile       string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
+	KeyFileFlag     string        `env:"KEY" envDefault:"12345678"`
+	DatabaseEnv     string        `env:"DATABASE_DSN"`
+	StoreInterval   time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`
+	RestoreFlag     bool          `env:"RESTORE" envDefault:"true"`
+	PrivateKeyFile  string        `env:"CRYPTO_KEY"`
+	configFile      string        `env:"CONFIG"`
+	TrustedSubnet   string        `env:"TRUSTED_SUBNET"`
+	CertGRPCFile    string        `env:"CERT_FILE"`
+	CertKeyGRPCFile string        `env:"CERT_KEY_FILE"`
 }
 
 func (c *Config) isDefault(flagName string, envName string) bool {
@@ -57,15 +66,17 @@ func (c *Config) isDefault(flagName string, envName string) bool {
 }
 func (c *Config) UmarshalJSON(data []byte) (err error) {
 	var tmp struct {
-		Server         string `json:"address" env:"ADDRESS" envDefault:"localhost:8080"`
-		StoreFile      string `json:"store_file" env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
-		KeyFileFlag    string `env:"KEY" envDefault:"12345678"`
-		DatabaseEnv    string `json:"database_dsn" env:"DATABASE_DSN"`
-		StoreInterval  string `json:"store_interval" env:"STORE_INTERVAL" envDefault:"300s"`
-		RestoreFlag    bool   `json:"restore" env:"RESTORE" envDefault:"true"`
-		PrivateKeyFile string `json:"crypto_key" env:"CRYPTO_KEY"`
-		configFile     string `env:"CONFIG"`
-		TrustedSubnet  string `json:"trusted_subnet" env:"TRUSTED_SUBNET"`
+		Server          string `json:"address" env:"ADDRESS" envDefault:"localhost:8080"`
+		StoreFile       string `json:"store_file" env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
+		KeyFileFlag     string `env:"KEY" envDefault:"12345678"`
+		DatabaseEnv     string `json:"database_dsn" env:"DATABASE_DSN"`
+		StoreInterval   string `json:"store_interval" env:"STORE_INTERVAL" envDefault:"300s"`
+		RestoreFlag     bool   `json:"restore" env:"RESTORE" envDefault:"true"`
+		PrivateKeyFile  string `json:"crypto_key" env:"CRYPTO_KEY"`
+		configFile      string `env:"CONFIG"`
+		TrustedSubnet   string `json:"trusted_subnet" env:"TRUSTED_SUBNET"`
+		CertGRPCFile    string `json:"cert" env:"CERT_FILE" envDefault:""`
+		CertKeyGRPCFile string `json:"cert_key" env:"CERT_KEY_FILE" envDefault:""`
 	}
 	if err = json.Unmarshal(data, &tmp); err != nil {
 		return err
@@ -85,6 +96,12 @@ func (c *Config) UmarshalJSON(data []byte) (err error) {
 	if !c.isDefault("crypto-key", "CRYPTO_KEY") {
 		c.PrivateKeyFile = tmp.PrivateKeyFile
 	}
+	if !c.isDefault("cert", "CERT_FILE") {
+		c.CertGRPCFile = tmp.CertGRPCFile
+	}
+	if !c.isDefault("cert-key", "CERT_KEY_FILE") {
+		c.CertKeyGRPCFile = tmp.CertKeyGRPCFile
+	}
 	if !c.isDefault("r", "RESTORE") {
 		c.RestoreFlag = tmp.RestoreFlag
 	}
@@ -97,7 +114,6 @@ type Server struct {
 	srv   *http.Server
 	db    *database.Database
 	cfg   Config
-	//key   *rsa.PrivateKey
 }
 
 // NewServer - Server constructor.
@@ -144,8 +160,17 @@ func NewServer() Server {
 		cfg.KeyFileFlag = *keyFileArg
 	}
 	a = flag.Lookup("crypto-key")
-	if envCfg["CRYPTO_KEY"] && a != nil {
+	if envCfg["CRYPTO_KEY"] || a != nil {
 		cfg.PrivateKeyFile = *PrivateKeyFileArg
+	}
+
+	a = flag.Lookup("cert")
+	if envCfg["CERT_FILE"] || a != nil {
+		cfg.CertGRPCFile = *certFile
+	}
+	a = flag.Lookup("cert-file")
+	if envCfg["CERT_KEY_FILE"] || a != nil {
+		cfg.CertKeyGRPCFile = *keyCertFile
 	}
 
 	if envCfg["CONFIG"] || a != nil {
@@ -196,6 +221,8 @@ var (
 	PrivateKeyFileArg *string
 	configFile        *string
 	trustedSubnet     *string
+	certFile          *string
+	keyCertFile       *string
 )
 
 func init() {
@@ -209,6 +236,8 @@ func init() {
 	configFile = flag.String("c", "", "json config file path")
 	configFile = flag.String("config", "", "json config file path")
 	trustedSubnet = flag.String("t", "", "trusted subnet")
+	certFile = flag.String("cert", "", "tls cert file path for gRPC")
+	keyCertFile = flag.String("cert-key", "", "tls key for cert file path for gRPC")
 }
 
 // StartServe - main server func.
@@ -250,6 +279,33 @@ func (s *Server) StartServe() {
 	mux.Post("/value/", s.handl.HandlePostJSONValue)
 	s.srv.Addr = s.cfg.Server
 	s.srv.Handler = mux
+
+	// gPRC server starts.
+	fqdn := strings.Split(s.cfg.Server, ":")
+	listen, err := net.Listen("tcp", fqdn[0]+":3200")
+	if err != nil {
+		log.Fatal(err)
+	}
+	gsrv := grpc.NewServer()
+	creds := insecure.NewCredentials()
+	if s.cfg.CertGRPCFile != "" {
+		creds, err = credentials.NewServerTLSFromFile("cert.pem", "key.pem")
+		if err != nil {
+			log.Println(err)
+		}
+		gsrv = grpc.NewServer(grpc.Creds(creds))
+	}
+	if s.cfg.TrustedSubnet != "" {
+		gsrv = grpc.NewServer(grpc.Creds(creds), grpc.UnaryInterceptor(s.unaryCheckIPInterceptor))
+	}
+	pb.RegisterMetricsServer(gsrv, &MetricsServer{
+		handl: s.handl,
+	})
+
+	fmt.Println("Сервер gRPC начал работу")
+	go gsrv.Serve(listen)
+
+	// HTTP server starts
 	fmt.Println("Server is listening...")
 	if err := s.srv.ListenAndServe(); err != nil {
 		log.Printf("Server shutdown: %s", err.Error())
@@ -294,4 +350,86 @@ func (s *Server) saveData(file string) {
 func (s *Server) Restore(file string) {
 	s.handl.Repo.Restore(file)
 	// 	log.Println("Data restored")
+}
+
+type MetricsServer struct {
+	pb.UnimplementedMetricsServer
+
+	handl handlers.Handlers
+}
+
+func (m MetricsServer) AddMetric(ctx context.Context, in *pb.AddMetricRequest) (*pb.AddMetricResponse, error) {
+	data := models.NewMetric(
+		in.Metric.Id,
+		in.Metric.Mtype.String(),
+		&in.Metric.Delta,
+		&in.Metric.Value,
+		in.Metric.Hash)
+	if m.handl.CryptoService.IsEnable {
+		if m.handl.CryptoService.CheckHash(data) {
+			response := pb.AddMetricResponse{
+				Error: "hash error",
+			}
+			return &response, status.Errorf(codes.DataLoss, `Check sign error`)
+		}
+	}
+	err := m.handl.Repo.InsertMetric(ctx, data)
+	if err != nil {
+		response := pb.AddMetricResponse{
+			Error: "Bad data",
+		}
+		return &response, nil
+	}
+	response := pb.AddMetricResponse{
+		Error: "",
+	}
+	return &response, nil
+}
+
+func (m MetricsServer) AddMetrics(ctx context.Context, in *pb.AddMetricsRequest) (*pb.AddMetricsResponse, error) {
+	allData := []models.Metrics{}
+	// Вот тут не очень конечно. Конвертируем из json в protobuf, потом опять из protobuf в json.
+	// Надо наверное сделать две раздельные хранилки в агенте для json и protobuff.
+	for i := range in.Metrics {
+		data := models.NewMetric(
+			in.Metrics[i].Id,
+			in.Metrics[i].Mtype.String(),
+			&in.Metrics[i].Delta,
+			&in.Metrics[i].Value,
+			in.Metrics[i].Hash)
+		// кроме того я так и не понял как получить доступ к данным из интерцептора
+		if m.handl.CryptoService.IsEnable {
+			if m.handl.CryptoService.CheckHash(data) {
+				response := pb.AddMetricsResponse{
+					Error: "hash error",
+				}
+				return &response, status.Errorf(codes.DataLoss, `Check sign error`)
+			}
+		}
+		allData = append(allData, data)
+	}
+	m.handl.Repo.BatchInsert(ctx, allData)
+	response := pb.AddMetricsResponse{
+		Error: "",
+	}
+	return &response, nil
+}
+
+func (s Server) unaryCheckIPInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.InvalidArgument, "Retrieving metadata is failed")
+	}
+	data, ok := md["x-real-ip"]
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "missing IP")
+	}
+	ip := net.ParseIP(data[0])
+	if ip == nil || !s.handl.TrustedSubnet.Contains(ip) {
+		return nil, status.Errorf(codes.Unauthenticated, "not in trusted subnet")
+	}
+
+	h, err := handler(ctx, req)
+	return h, err
+
 }
