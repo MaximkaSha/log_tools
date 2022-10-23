@@ -31,14 +31,22 @@ func (r *Repository) InsertMetric(ctx context.Context, m models.Metrics) error {
 //
 // DEPRICATED: use InsertMetric.
 func (r *Repository) AppendMetric(m models.Metrics) {
+	log.Println("1")
+	log.Println(m)
 	for i := range r.JSONDB {
+		log.Println("2")
 		if r.JSONDB[i].ID == m.ID {
+			log.Println("3")
 			if m.Delta != nil {
+				log.Println("4")
 				newDelta := *(r.JSONDB[i].Delta) + *(m.Delta)
 				r.JSONDB[i].Delta = &newDelta
+				log.Println("6")
 			}
+			log.Println("7")
 			r.JSONDB[i].Value = m.Value
 			r.JSONDB[i].Hash = m.Hash
+			log.Println("8")
 			return
 		}
 	}
