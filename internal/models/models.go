@@ -53,24 +53,19 @@ func NewMetric(varID string, varType string, varDelta *int64, varValue *float64,
 }
 
 func (m *Metrics) ToProto() *pb.Metric {
-	mType := pb.Metric_COUNTER
-	var delta int64
-	var value float64
 
 	if m.MType == "gauge" {
-		mType = pb.Metric_GAUGE
-	}
-	if m.Delta != nil {
-		delta = *m.Delta
-	}
-	if m.Value != nil {
-		value = *m.Value
+		return &pb.Metric{
+			Id:    m.ID,
+			Mtype: pb.Metric_GAUGE,
+			Value: *m.Value,
+			Hash:  m.Hash,
+		}
 	}
 	return &pb.Metric{
 		Id:    m.ID,
-		Mtype: mType,
-		Delta: delta,
-		Value: value,
+		Mtype: pb.Metric_COUNTER,
+		Delta: *m.Delta,
 		Hash:  m.Hash,
 	}
 }

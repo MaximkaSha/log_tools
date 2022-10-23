@@ -16,6 +16,7 @@ import (
 	"os/signal"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -163,7 +164,7 @@ func (a *Agent) StartService() {
 	// получаем переменную интерфейсного типа UsersClient,
 	// через которую будем отправлять сообщения
 	c := pb.NewMetricsClient(conn)
-
+	var wg sync.WaitGroup
 	tickerCollect := time.NewTicker(pollInterval)
 	tickerSend := time.NewTicker(reportInterval)
 	defer tickerCollect.Stop()
@@ -173,7 +174,16 @@ func (a *Agent) StartService() {
 		case <-tickerCollect.C:
 			go a.CollectLogs()
 		case <-tickerSend.C:
-			go a.AgentSendWorker(c)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				a.SendLogsbyGRPC(c)
+				a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
+				a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
+				a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
+			}()
+			wg.Wait()
+			//go a.AgentSendWorker(c)
 		case <-sigc:
 			log.Println("Got quit signal.")
 			return

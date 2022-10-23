@@ -359,14 +359,12 @@ type MetricsServer struct {
 }
 
 func (m MetricsServer) AddMetric(ctx context.Context, in *pb.AddMetricRequest) (*pb.AddMetricResponse, error) {
-	log.Println(in.Metric)
 	data := models.NewMetric(
 		in.Metric.Id,
 		strings.ToLower(in.Metric.Mtype.String()),
 		&in.GetMetric().Delta,
 		&in.GetMetric().Value,
 		in.Metric.Hash)
-	log.Println(data)
 	if m.handl.CryptoService.IsEnable {
 		if m.handl.CryptoService.CheckHash(data) {
 			response := pb.AddMetricResponse{
@@ -385,7 +383,6 @@ func (m MetricsServer) AddMetric(ctx context.Context, in *pb.AddMetricRequest) (
 	response := pb.AddMetricResponse{
 		Error: "",
 	}
-	log.Println("END")
 	return &response, nil
 }
 
