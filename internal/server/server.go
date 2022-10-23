@@ -390,10 +390,11 @@ func (m MetricsServer) AddMetrics(ctx context.Context, in *pb.AddMetricsRequest)
 	allData := []models.Metrics{}
 	// Вот тут не очень конечно. Конвертируем из json в protobuf, потом опять из protobuf в json.
 	// Надо наверное сделать две раздельные хранилки в агенте для json и protobuff.
+
 	for i := range in.Metrics {
 		data := models.NewMetric(
 			in.Metrics[i].Id,
-			in.Metrics[i].Mtype.String(),
+			strings.ToLower(in.Metrics[i].Mtype.String()),
 			&in.Metrics[i].Delta,
 			&in.Metrics[i].Value,
 			in.Metrics[i].Hash)

@@ -187,7 +187,7 @@ func (a Agent) AgentSendWorker(c pb.MetricsClient) {
 	a.SendLogsbyPost("http://" + a.cfg.Server + "/update/")
 	a.SendLogsbyJSON("http://" + a.cfg.Server + "/update/")
 	a.SendLogsbyJSONBatch("http://" + a.cfg.Server + "/updates/")
-	a.SendLogsbyGRPCBatch(c)
+	//a.SendLogsbyGRPCBatch(c)
 }
 
 func (a Agent) Call(url string, method string, data io.Reader) error {
@@ -198,10 +198,6 @@ func (a Agent) Call(url string, method string, data io.Reader) error {
 		return err
 	}
 	ip := a.IP
-	if err != nil {
-		log.Printf("Getting local IP error %s", err.Error())
-		return err
-	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Add("X-Real-IP", ip)
 	response, err := client.Do(req)
