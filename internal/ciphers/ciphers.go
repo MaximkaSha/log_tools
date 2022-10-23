@@ -181,7 +181,7 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, private *rsa.PrivateKey, msg 
 	return decryptedBytes, nil
 }
 
-func GenerateTlsCert(key rsa.PrivateKey) ([]byte, []byte) {
+func GenerateTLSCert(key rsa.PrivateKey) ([]byte, []byte) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		log.Fatalf("invalid key pair: %v", err)

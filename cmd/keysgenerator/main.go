@@ -37,7 +37,7 @@ func main() {
 		return
 	}
 	fmt.Println("Key generated successfully")
-	_, pemCert := ciphers.GenerateTlsCert(*priv)
+	_, pemCert := ciphers.GenerateTLSCert(*priv)
 	pemCertFile, err := os.Create("cert.pem")
 	if err != nil {
 		fmt.Println(err)

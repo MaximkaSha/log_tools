@@ -359,9 +359,10 @@ type MetricsServer struct {
 }
 
 func (m MetricsServer) AddMetric(ctx context.Context, in *pb.AddMetricRequest) (*pb.AddMetricResponse, error) {
+	log.Println(in.Metric)
 	data := models.NewMetric(
 		in.Metric.Id,
-		in.Metric.Mtype.String(),
+		strings.ToLower(in.Metric.Mtype.String()),
 		&in.Metric.Delta,
 		&in.Metric.Value,
 		in.Metric.Hash)

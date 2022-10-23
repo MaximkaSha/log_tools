@@ -126,7 +126,7 @@ func TestReadPublicKeyFromFile(t *testing.T) {
 	}
 }
 
-func TestGenerateTlsCert(t *testing.T) {
+func TestGenerateTLSCert(t *testing.T) {
 	type args struct {
 		key rsa.PrivateKey
 	}
@@ -143,8 +143,8 @@ func TestGenerateTlsCert(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := GenerateTlsCert(tt.args.key)
-			got2, got3 := GenerateTlsCert(tt.args.key)
+			got, got1 := GenerateTLSCert(tt.args.key)
+			got2, got3 := GenerateTLSCert(tt.args.key)
 			assert.NotEqual(t, got, got2, "Certs are equal")
 			assert.NotEqual(t, got1, got3, "Certs are equal")
 			os.Remove("cert.pem")
