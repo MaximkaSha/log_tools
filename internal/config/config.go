@@ -163,7 +163,22 @@ func (c Config) coalesceTime(json Config) time.Duration {
 	if err != nil {
 		log.Println("If you are here then the space-time continuum is destroyed")
 	}
-	log.Println(def)
+	if enVar, ok := os.LookupEnv("STORE_INTERVAL"); ok {
+		data, err := time.ParseDuration(enVar)
+		if err != nil {
+			log.Println("env store interbal var parsing error. setting defualt")
+			return def
+		}
+		return data
+	}
+	if flagVar := flag.Lookup("i"); flagVar != nil && flagVar.Value.String() != flagVar.DefValue {
+		data, err := time.ParseDuration(flagVar.Value.String())
+		if err != nil {
+			log.Println("flag store interbal var parsing error. setting defualt")
+			return def
+		}
+		return data
+	}
 	if !c.isDefault("i", "STORE_INTERVAL") {
 		if c.configFile != "" {
 			return json.StoreInterval
