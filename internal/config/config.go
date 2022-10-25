@@ -42,8 +42,8 @@ var (
 func init() {
 	srvAdressArg = flag.String("a", "localhost:8080", "host:port (default localhost:8080)")
 	storeIntervalArg = flag.Duration("i", time.Duration(300*time.Second), "store interval in seconds (default 300s)")
-	storeFileArg = flag.String("f", "/tmp/devops-metrics-db.json", "path to file for store (default '/tmp/devops-metrics-db.json')")
-	restoreFlagArg = flag.Bool("r", true, "if is true restore data from env:RESTORE (default true)")
+	storeFileArg = flag.String("f", "", "path to file for store (default '')")
+	restoreFlagArg = flag.Bool("r", false, "if is true restore data from env:RESTORE (default false)")
 	keyFileArg = flag.String("k", "", "hmac key")
 	databaseArg = flag.String("d", "", "string database config")
 	PrivateKeyFileArg = flag.String("crypto-key", "", "private key")
@@ -136,7 +136,7 @@ func NewConfig() *Config {
 	log.Println("envCfg:")
 	log.Println(envCfg)
 	log.Println("flagCfg:")
-	log.Println(flagCfg.Server)
+	log.Println(flagCfg)
 	if envCfg.ConfigFile != "" {
 		jsonData, err := ioutil.ReadFile(envCfg.ConfigFile)
 		if err != nil {
