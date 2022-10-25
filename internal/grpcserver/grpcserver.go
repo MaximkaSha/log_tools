@@ -36,22 +36,16 @@ func (m MetricsServer) AddMetric(ctx context.Context, in *pb.AddMetricRequest) (
 		in.Metric.Hash)
 	if m.handl.CryptoService.IsEnable {
 		if m.handl.CryptoService.CheckHash(data) {
-			response := pb.AddMetricResponse{
-				Error: "hash error",
-			}
+			response := pb.AddMetricResponse{}
 			return &response, status.Errorf(codes.DataLoss, `Check sign error`)
 		}
 	}
 	err := m.handl.Repo.InsertMetric(ctx, data)
 	if err != nil {
-		response := pb.AddMetricResponse{
-			Error: "Bad data",
-		}
-		return &response, nil
+		response := pb.AddMetricResponse{}
+		return &response, status.Errorf(codes.InvalidArgument, "Invalid Metric")
 	}
-	response := pb.AddMetricResponse{
-		Error: "",
-	}
+	response := pb.AddMetricResponse{}
 	return &response, nil
 }
 
@@ -70,18 +64,14 @@ func (m MetricsServer) AddMetrics(ctx context.Context, in *pb.AddMetricsRequest)
 		// кроме того я так и не понял как получить доступ к данным из интерцептора
 		if m.handl.CryptoService.IsEnable {
 			if m.handl.CryptoService.CheckHash(data) {
-				response := pb.AddMetricsResponse{
-					Error: "hash error",
-				}
+				response := pb.AddMetricsResponse{}
 				return &response, status.Errorf(codes.InvalidArgument, `Check sign error`)
 			}
 		}
 		allData = append(allData, data)
 	}
 	m.handl.Repo.BatchInsert(ctx, allData)
-	response := pb.AddMetricsResponse{
-		Error: "",
-	}
+	response := pb.AddMetricsResponse{}
 	return &response, nil
 }
 

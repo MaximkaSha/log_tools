@@ -23,14 +23,12 @@ message AddMetricRequest {
 }
 
 message AddMetricResponse {
-    string error = 1;
 }
 message AddMetricsRequest {
     repeated Metric metrics = 1;
     int64 size = 2;
 }
 message AddMetricsResponse {
-    string error = 1;
 }
 service Metrics {
   rpc AddMetric(AddMetricRequest) returns (AddMetricResponse);
