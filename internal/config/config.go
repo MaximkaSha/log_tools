@@ -107,6 +107,10 @@ func NewConfig() *Config {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("envCfg:")
+	log.Println(envCfg)
+	log.Println("flagCfg:")
+	log.Println(flagCfg)
 	if envCfg.configFile != "" {
 		jsonData, err := ioutil.ReadFile(envCfg.configFile)
 		if err != nil {
@@ -140,6 +144,8 @@ func NewConfig() *Config {
 	cfg.TrustedSubnet = cfg.coalesceString(envCfg.TrustedSubnet, flagCfg.TrustedSubnet, jsonCfg.TrustedSubnet, "")
 	cfg.CertGRPCFile = cfg.coalesceString(envCfg.CertGRPCFile, flagCfg.CertGRPCFile, jsonCfg.CertGRPCFile, "")
 	cfg.CertKeyGRPCFile = cfg.coalesceString(envCfg.CertKeyGRPCFile, flagCfg.CertKeyGRPCFile, jsonCfg.CertKeyGRPCFile, "")
+	log.Println("resultCfg")
+	log.Println(cfg)
 	return cfg
 }
 
@@ -149,7 +155,7 @@ func (c Config) coalesceBool(json Config) bool {
 			return json.RestoreFlag
 		}
 	}
-	return true
+	return false
 }
 
 func (c Config) coalesceTime(json Config) time.Duration {

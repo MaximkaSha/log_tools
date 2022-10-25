@@ -118,6 +118,7 @@ type Server struct {
 // NewServer - Server constructor.
 func NewServer() Server {
 	cfg := cfgP.NewConfig()
+	log.Println(cfg)
 	/*
 		var envCfg = make(map[string]bool)
 		opts := env.Options{
