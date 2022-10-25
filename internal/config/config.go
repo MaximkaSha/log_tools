@@ -19,31 +19,56 @@ type Config struct {
 	StoreInterval   time.Duration `env:"STORE_INTERVAL"`
 	RestoreFlag     bool          `env:"RESTORE"`
 	PrivateKeyFile  string        `env:"CRYPTO_KEY"`
-	configFile      string        `env:"CONFIG"`
+	ConfigFile      string        `env:"CONFIG"`
 	TrustedSubnet   string        `env:"TRUSTED_SUBNET"`
 	CertGRPCFile    string        `env:"CERT_FILE"`
 	CertKeyGRPCFile string        `env:"CERT_KEY_FILE"`
 }
 
 var (
-	flagCfg Config
+	srvAdressArg      *string
+	storeIntervalArg  *time.Duration
+	storeFileArg      *string
+	restoreFlagArg    *bool
+	keyFileArg        *string
+	databaseArg       *string
+	PrivateKeyFileArg *string
+	configFile        *string
+	trustedSubnet     *string
+	certFile          *string
+	keyCertFile       *string
 )
 
 func init() {
-	flagCfg.Server = *(flag.String("a", "", "host:port (default localhost:8080)"))
-	flagCfg.StoreInterval = *(flag.Duration("i", time.Duration(300*time.Second), "store interval in seconds (default 300s)"))
-	flagCfg.StoreFile = *(flag.String("f", "", "path to file for store (default '/tmp/devops-metrics-db.json')"))
-	flagCfg.RestoreFlag = *(flag.Bool("r", true, "if is true restore data from env:RESTORE (default true)"))
-	flagCfg.KeyFileFlag = *(flag.String("k", "", "hmac key"))
-	flagCfg.DatabaseEnv = *(flag.String("d", "", "string database config"))
-	flagCfg.PrivateKeyFile = *(flag.String("crypto-key", "", "private key"))
-	flagCfg.configFile = *(flag.String("c", "", "json config file path"))
-	flagCfg.configFile = *(flag.String("config", "", "json config file path"))
-	flagCfg.TrustedSubnet = *(flag.String("t", "", "trusted subnet"))
-	flagCfg.CertGRPCFile = *(flag.String("cert", "", "tls cert file path for gRPC"))
-	flagCfg.CertKeyGRPCFile = *(flag.String("cert-key", "", "tls key for cert file path for gRPC"))
+	srvAdressArg = flag.String("a", "localhost:8080", "host:port (default localhost:8080)")
+	storeIntervalArg = flag.Duration("i", time.Duration(300*time.Second), "store interval in seconds (default 300s)")
+	storeFileArg = flag.String("f", "/tmp/devops-metrics-db.json", "path to file for store (default '/tmp/devops-metrics-db.json')")
+	restoreFlagArg = flag.Bool("r", true, "if is true restore data from env:RESTORE (default true)")
+	keyFileArg = flag.String("k", "", "hmac key")
+	databaseArg = flag.String("d", "", "string database config")
+	PrivateKeyFileArg = flag.String("crypto-key", "", "private key")
+	configFile = flag.String("c", "", "json config file path")
+	configFile = flag.String("config", "", "json config file path")
+	trustedSubnet = flag.String("t", "", "trusted subnet")
+	certFile = flag.String("cert", "", "tls cert file path for gRPC")
+	keyCertFile = flag.String("cert-key", "", "tls key for cert file path for gRPC")
 }
-
+func parseFlag() Config {
+	flag.Parse()
+	return Config{
+		Server:          *srvAdressArg,
+		StoreFile:       *storeFileArg,
+		KeyFileFlag:     *keyFileArg,
+		DatabaseEnv:     *databaseArg,
+		StoreInterval:   *storeIntervalArg,
+		RestoreFlag:     *restoreFlagArg,
+		PrivateKeyFile:  *PrivateKeyFileArg,
+		ConfigFile:      *configFile,
+		TrustedSubnet:   *trustedSubnet,
+		CertGRPCFile:    *certFile,
+		CertKeyGRPCFile: *keyCertFile,
+	}
+}
 func (c *Config) isDefault(flagName string, envName string) bool {
 	flagPresent := false
 	envPresent := false
@@ -101,6 +126,7 @@ func (c *Config) UmarshalJSON(data []byte) (err error) {
 }
 
 func NewConfig() *Config {
+	flagCfg := parseFlag()
 	envCfg := &Config{}
 	jsonCfg := &Config{}
 	err := env.Parse(envCfg)
@@ -110,9 +136,9 @@ func NewConfig() *Config {
 	log.Println("envCfg:")
 	log.Println(envCfg)
 	log.Println("flagCfg:")
-	log.Println(flagCfg)
-	if envCfg.configFile != "" {
-		jsonData, err := ioutil.ReadFile(envCfg.configFile)
+	log.Println(flagCfg.Server)
+	if envCfg.ConfigFile != "" {
+		jsonData, err := ioutil.ReadFile(envCfg.ConfigFile)
 		if err != nil {
 			log.Println(err)
 		}
@@ -121,8 +147,8 @@ func NewConfig() *Config {
 			log.Println(err)
 		}
 	}
-	if flagCfg.configFile != "" {
-		jsonData, err := ioutil.ReadFile(flagCfg.configFile)
+	if flagCfg.ConfigFile != "" {
+		jsonData, err := ioutil.ReadFile(flagCfg.ConfigFile)
 		if err != nil {
 			log.Println(err)
 		}
@@ -140,7 +166,7 @@ func NewConfig() *Config {
 	cfg.StoreInterval = cfg.coalesceTime(*jsonCfg)
 	cfg.RestoreFlag = cfg.coalesceBool(*jsonCfg)
 	cfg.PrivateKeyFile = cfg.coalesceString(envCfg.PrivateKeyFile, flagCfg.PrivateKeyFile, jsonCfg.PrivateKeyFile, "")
-	cfg.configFile = cfg.coalesceString(envCfg.configFile, flagCfg.configFile, jsonCfg.configFile, "")
+	cfg.ConfigFile = cfg.coalesceString(envCfg.ConfigFile, flagCfg.ConfigFile, jsonCfg.ConfigFile, "")
 	cfg.TrustedSubnet = cfg.coalesceString(envCfg.TrustedSubnet, flagCfg.TrustedSubnet, jsonCfg.TrustedSubnet, "")
 	cfg.CertGRPCFile = cfg.coalesceString(envCfg.CertGRPCFile, flagCfg.CertGRPCFile, jsonCfg.CertGRPCFile, "")
 	cfg.CertKeyGRPCFile = cfg.coalesceString(envCfg.CertKeyGRPCFile, flagCfg.CertKeyGRPCFile, jsonCfg.CertKeyGRPCFile, "")
@@ -158,7 +184,7 @@ func (c Config) coalesceBool(json Config) bool {
 		return true
 	}
 	if !c.isDefault("i", "STORE_INTERVAL") {
-		if c.configFile != "" {
+		if c.ConfigFile != "" {
 			return json.RestoreFlag
 		}
 	}
@@ -187,7 +213,7 @@ func (c Config) coalesceTime(json Config) time.Duration {
 		return data
 	}
 	if !c.isDefault("i", "STORE_INTERVAL") {
-		if c.configFile != "" {
+		if c.ConfigFile != "" {
 			return json.StoreInterval
 		}
 	}
