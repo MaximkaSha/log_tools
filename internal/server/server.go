@@ -6,14 +6,13 @@ package server
 import (
 	"compress/flate"
 	"context"
-	"net"
-	"strings"
-
-	//	"crypto/rsa"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"net"
+	"strings"
+
+	//"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -21,21 +20,21 @@ import (
 	"syscall"
 	"time"
 
+	cfgP "github.com/MaximkaSha/log_tools/internal/config"
 	"github.com/MaximkaSha/log_tools/internal/crypto"
 	"github.com/MaximkaSha/log_tools/internal/database"
+	"github.com/MaximkaSha/log_tools/internal/grpcserver"
 	"github.com/MaximkaSha/log_tools/internal/handlers"
 	"github.com/MaximkaSha/log_tools/internal/models"
 	pb "github.com/MaximkaSha/log_tools/internal/proto"
 	"github.com/MaximkaSha/log_tools/internal/storage"
-	"github.com/caarlos0/env/v6"
+
+	//"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 )
 
 // Config structure is server configiguration.
@@ -113,86 +112,87 @@ type Server struct {
 	handl handlers.Handlers
 	srv   *http.Server
 	db    *database.Database
-	cfg   Config
+	cfg   cfgP.Config
 }
 
 // NewServer - Server constructor.
 func NewServer() Server {
-	var cfg Config
-	var envCfg = make(map[string]bool)
-	opts := env.Options{
-		OnSet: func(tag string, value interface{}, isDefault bool) {
-			envCfg[tag] = isDefault
-		},
-	}
-	err := env.Parse(&cfg, opts)
-	if err != nil {
-		log.Fatal(err)
-	}
-	flag.Parse()
-	var a = flag.Lookup("a")
-	if envCfg["ADDRESS"] && a != nil {
-		cfg.Server = *srvAdressArg
-	}
-	a = flag.Lookup("i")
-	if envCfg["STORE_INTERVAL"] && a != nil {
-		cfg.StoreInterval = *storeIntervalArg
-	}
-	b := flag.Lookup("d")
-	_, present := os.LookupEnv("DATABASE_DSN")
-	if !present && b != nil {
-		cfg.DatabaseEnv = *databaseArg
-	}
-	a = flag.Lookup("f")
-	if envCfg["STORE_FILE"] && a != nil {
-		cfg.StoreFile = *storeFileArg
-	}
-	a = flag.Lookup("r")
-	if envCfg["RESTORE"] && a != nil {
-		cfg.RestoreFlag = *restoreFlagArg
-	}
-	a = flag.Lookup("t")
-	if envCfg["TRUSTED_SUBNET"] || a != nil {
-		cfg.TrustedSubnet = *trustedSubnet
-	}
-	a = flag.Lookup("k")
-	if envCfg["KEY"] && a != nil {
-		cfg.KeyFileFlag = *keyFileArg
-	}
-	a = flag.Lookup("crypto-key")
-	if envCfg["CRYPTO_KEY"] || a != nil {
-		cfg.PrivateKeyFile = *PrivateKeyFileArg
-	}
+	cfg := cfgP.NewConfig()
+	/*
+		var envCfg = make(map[string]bool)
+		opts := env.Options{
+			OnSet: func(tag string, value interface{}, isDefault bool) {
+				envCfg[tag] = isDefault
+			},
+		}
+		err := env.Parse(&cfg, opts)
+		if err != nil {
+			log.Fatal(err)
+		}
+		flag.Parse()
+		var a = flag.Lookup("a")
+		if envCfg["ADDRESS"] && a != nil {
+			cfg.Server = *srvAdressArg
+		}
+		a = flag.Lookup("i")
+		if envCfg["STORE_INTERVAL"] && a != nil {
+			cfg.StoreInterval = *storeIntervalArg
+		}
+		b := flag.Lookup("d")
+		_, present := os.LookupEnv("DATABASE_DSN")
+		if !present && b != nil {
+			cfg.DatabaseEnv = *databaseArg
+		}
+		a = flag.Lookup("f")
+		if envCfg["STORE_FILE"] && a != nil {
+			cfg.StoreFile = *storeFileArg
+		}
+		a = flag.Lookup("r")
+		if envCfg["RESTORE"] && a != nil {
+			cfg.RestoreFlag = *restoreFlagArg
+		}
+		a = flag.Lookup("t")
+		if envCfg["TRUSTED_SUBNET"] || a != nil {
+			cfg.TrustedSubnet = *trustedSubnet
+		}
+		a = flag.Lookup("k")
+		if envCfg["KEY"] && a != nil {
+			cfg.KeyFileFlag = *keyFileArg
+		}
+		a = flag.Lookup("crypto-key")
+		if envCfg["CRYPTO_KEY"] || a != nil {
+			cfg.PrivateKeyFile = *PrivateKeyFileArg
+		}
 
-	a = flag.Lookup("cert")
-	if envCfg["CERT_FILE"] || a != nil {
-		cfg.CertGRPCFile = *certFile
-	}
-	a = flag.Lookup("cert-file")
-	if envCfg["CERT_KEY_FILE"] || a != nil {
-		cfg.CertKeyGRPCFile = *keyCertFile
-	}
+		a = flag.Lookup("cert")
+		if envCfg["CERT_FILE"] || a != nil {
+			cfg.CertGRPCFile = *certFile
+		}
+		a = flag.Lookup("cert-file")
+		if envCfg["CERT_KEY_FILE"] || a != nil {
+			cfg.CertKeyGRPCFile = *keyCertFile
+		}
 
-	if envCfg["CONFIG"] || a != nil {
-		cfg.configFile = *configFile
-	} else {
-		a = flag.Lookup("config")
 		if envCfg["CONFIG"] || a != nil {
 			cfg.configFile = *configFile
+		} else {
+			a = flag.Lookup("config")
+			if envCfg["CONFIG"] || a != nil {
+				cfg.configFile = *configFile
+			}
 		}
-	}
-	if cfg.configFile != "" {
-		jsonData, err := ioutil.ReadFile(cfg.configFile)
-		if err != nil {
-			log.Println(err)
-		}
-		err = cfg.UmarshalJSON(jsonData)
-		if err != nil {
-			log.Println(err)
-		}
-	}
+		if cfg.configFile != "" {
+			jsonData, err := ioutil.ReadFile(cfg.configFile)
+			if err != nil {
+				log.Println(err)
+			}
+			err = cfg.UmarshalJSON(jsonData)
+			if err != nil {
+				log.Println(err)
+			}
+		} */
 	var serv = Server{}
-	serv.cfg = cfg
+	serv.cfg = *cfg
 	var repo models.Storager
 	if cfg.DatabaseEnv == "" {
 		imMemory := storage.NewRepo()
@@ -205,12 +205,13 @@ func NewServer() Server {
 	}
 	cryptoService := crypto.NewCryptoService()
 	cryptoService.InitCryptoService(cfg.KeyFileFlag)
-	handl := handlers.NewHandlers(repo, cryptoService, *PrivateKeyFileArg)
+	handl := handlers.NewHandlers(repo, cryptoService, cfg.PrivateKeyFile)
 	serv.handl = handl
 	serv.srv = &http.Server{}
 	return serv
 }
 
+/*
 var (
 	srvAdressArg      *string
 	storeIntervalArg  *time.Duration
@@ -238,7 +239,7 @@ func init() {
 	trustedSubnet = flag.String("t", "", "trusted subnet")
 	certFile = flag.String("cert", "", "tls cert file path for gRPC")
 	keyCertFile = flag.String("cert-key", "", "tls key for cert file path for gRPC")
-}
+} */
 
 // StartServe - main server func.
 // It stands for endpoits initialization and server handling.
@@ -295,12 +296,12 @@ func (s *Server) StartServe() {
 		}
 		gsrv = grpc.NewServer(grpc.Creds(creds))
 	}
+
+	ms := grpcserver.NewMetricServer(s.handl)
 	if s.cfg.TrustedSubnet != "" {
-		gsrv = grpc.NewServer(grpc.Creds(creds), grpc.UnaryInterceptor(s.unaryCheckIPInterceptor))
+		gsrv = grpc.NewServer(grpc.Creds(creds), grpc.UnaryInterceptor(ms.UnaryCheckIPInterceptor))
 	}
-	pb.RegisterMetricsServer(gsrv, &MetricsServer{
-		handl: s.handl,
-	})
+	pb.RegisterMetricsServer(gsrv, ms)
 
 	fmt.Println("Сервер gRPC начал работу")
 	go gsrv.Serve(listen)
@@ -316,7 +317,7 @@ func (s *Server) StartServe() {
 	}
 }
 
-func (s *Server) routins(cfg *Config) {
+func (s *Server) routins(cfg *cfgP.Config) {
 	log.Println("start routiner.")
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
@@ -350,87 +351,4 @@ func (s *Server) saveData(file string) {
 func (s *Server) Restore(file string) {
 	s.handl.Repo.Restore(file)
 	// 	log.Println("Data restored")
-}
-
-type MetricsServer struct {
-	pb.UnimplementedMetricsServer
-
-	handl handlers.Handlers
-}
-
-func (m MetricsServer) AddMetric(ctx context.Context, in *pb.AddMetricRequest) (*pb.AddMetricResponse, error) {
-	data := models.NewMetric(
-		in.Metric.Id,
-		strings.ToLower(in.Metric.Mtype.String()),
-		&in.GetMetric().Delta,
-		&in.GetMetric().Value,
-		in.Metric.Hash)
-	if m.handl.CryptoService.IsEnable {
-		if m.handl.CryptoService.CheckHash(data) {
-			response := pb.AddMetricResponse{
-				Error: "hash error",
-			}
-			return &response, status.Errorf(codes.DataLoss, `Check sign error`)
-		}
-	}
-	err := m.handl.Repo.InsertMetric(ctx, data)
-	if err != nil {
-		response := pb.AddMetricResponse{
-			Error: "Bad data",
-		}
-		return &response, nil
-	}
-	response := pb.AddMetricResponse{
-		Error: "",
-	}
-	return &response, nil
-}
-
-func (m MetricsServer) AddMetrics(ctx context.Context, in *pb.AddMetricsRequest) (*pb.AddMetricsResponse, error) {
-	allData := []models.Metrics{}
-	// Вот тут не очень конечно. Конвертируем из json в protobuf, потом опять из protobuf в json.
-	// Надо наверное сделать две раздельные хранилки в агенте для json и protobuff.
-
-	for i := range in.Metrics {
-		data := models.NewMetric(
-			in.Metrics[i].Id,
-			strings.ToLower(in.Metrics[i].Mtype.String()),
-			&in.Metrics[i].Delta,
-			&in.Metrics[i].Value,
-			in.Metrics[i].Hash)
-		// кроме того я так и не понял как получить доступ к данным из интерцептора
-		if m.handl.CryptoService.IsEnable {
-			if m.handl.CryptoService.CheckHash(data) {
-				response := pb.AddMetricsResponse{
-					Error: "hash error",
-				}
-				return &response, status.Errorf(codes.DataLoss, `Check sign error`)
-			}
-		}
-		allData = append(allData, data)
-	}
-	m.handl.Repo.BatchInsert(ctx, allData)
-	response := pb.AddMetricsResponse{
-		Error: "",
-	}
-	return &response, nil
-}
-
-func (s Server) unaryCheckIPInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.InvalidArgument, "Retrieving metadata is failed")
-	}
-	data, ok := md["x-real-ip"]
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "missing IP")
-	}
-	ip := net.ParseIP(data[0])
-	if ip == nil || !s.handl.TrustedSubnet.Contains(ip) {
-		return nil, status.Errorf(codes.Unauthenticated, "not in trusted subnet")
-	}
-
-	h, err := handler(ctx, req)
-	return h, err
-
 }
