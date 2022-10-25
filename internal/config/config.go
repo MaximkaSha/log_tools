@@ -59,7 +59,7 @@ func (c *Config) UmarshalJSON(data []byte) (err error) {
 	var tmp struct {
 		Server          string `json:"address" env:"ADDRESS" envDefault:"localhost:8080"`
 		StoreFile       string `json:"store_file" env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
-		KeyFileFlag     string `env:"KEY" envDefault:"12345678"`
+		KeyFileFlag     string `env:"KEY"`
 		DatabaseEnv     string `json:"database_dsn" env:"DATABASE_DSN"`
 		StoreInterval   string `json:"store_interval" env:"STORE_INTERVAL" envDefault:"300s"`
 		RestoreFlag     bool   `json:"restore" env:"RESTORE" envDefault:"true"`
@@ -134,7 +134,7 @@ func NewConfig() *Config {
 	cfg := &Config{}
 	cfg.Server = cfg.coalesceString(envCfg.Server, flagCfg.Server, jsonCfg.Server, "localhost:8080")
 	cfg.StoreFile = cfg.coalesceString(envCfg.StoreFile, flagCfg.StoreFile, jsonCfg.StoreFile, "/tmp/devops-metrics-db.json")
-	cfg.KeyFileFlag = cfg.coalesceString(envCfg.KeyFileFlag, flagCfg.KeyFileFlag, jsonCfg.KeyFileFlag, "12345678")
+	cfg.KeyFileFlag = cfg.coalesceString(envCfg.KeyFileFlag, flagCfg.KeyFileFlag, jsonCfg.KeyFileFlag, "")
 	//Пустая для наглядности, я понимаю, что функция сама подставит
 	cfg.DatabaseEnv = cfg.coalesceString(envCfg.DatabaseEnv, flagCfg.DatabaseEnv, jsonCfg.DatabaseEnv, "")
 	cfg.StoreInterval = cfg.coalesceTime(*jsonCfg)
