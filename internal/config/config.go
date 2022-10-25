@@ -30,9 +30,9 @@ var (
 )
 
 func init() {
-	flagCfg.Server = *(flag.String("a", "localhost:8080", "host:port (default localhost:8080)"))
+	flagCfg.Server = *(flag.String("a", "", "host:port (default localhost:8080)"))
 	flagCfg.StoreInterval = *(flag.Duration("i", time.Duration(300*time.Second), "store interval in seconds (default 300s)"))
-	flagCfg.StoreFile = *(flag.String("f", "/tmp/devops-metrics-db.json", "path to file for store (default '/tmp/devops-metrics-db.json')"))
+	flagCfg.StoreFile = *(flag.String("f", "", "path to file for store (default '/tmp/devops-metrics-db.json')"))
 	flagCfg.RestoreFlag = *(flag.Bool("r", true, "if is true restore data from env:RESTORE (default true)"))
 	flagCfg.KeyFileFlag = *(flag.String("k", "", "hmac key"))
 	flagCfg.DatabaseEnv = *(flag.String("d", "", "string database config"))
@@ -133,7 +133,7 @@ func NewConfig() *Config {
 	}
 	cfg := &Config{}
 	cfg.Server = cfg.coalesceString(envCfg.Server, flagCfg.Server, jsonCfg.Server, "localhost:8080")
-	cfg.StoreFile = cfg.coalesceString(envCfg.StoreFile, flagCfg.StoreFile, jsonCfg.StoreFile, "/tmp/devops-metrics-db.json")
+	cfg.StoreFile = cfg.coalesceString(envCfg.StoreFile, flagCfg.StoreFile, jsonCfg.StoreFile, "")
 	cfg.KeyFileFlag = cfg.coalesceString(envCfg.KeyFileFlag, flagCfg.KeyFileFlag, jsonCfg.KeyFileFlag, "")
 	//Пустая для наглядности, я понимаю, что функция сама подставит
 	cfg.DatabaseEnv = cfg.coalesceString(envCfg.DatabaseEnv, flagCfg.DatabaseEnv, jsonCfg.DatabaseEnv, "")
@@ -150,12 +150,19 @@ func NewConfig() *Config {
 }
 
 func (c Config) coalesceBool(json Config) bool {
-	if !c.isDefault("r", "RESTORE") {
+	def := false
+	if _, ok := os.LookupEnv("STORE_INTERVAL"); ok {
+		return ok
+	}
+	if flagVar := flag.Lookup("i"); flagVar != nil {
+		return true
+	}
+	if !c.isDefault("i", "STORE_INTERVAL") {
 		if c.configFile != "" {
 			return json.RestoreFlag
 		}
 	}
-	return false
+	return def
 }
 
 func (c Config) coalesceTime(json Config) time.Duration {
