@@ -4,6 +4,8 @@ package models
 import (
 	"context"
 	"fmt"
+
+	pb "github.com/MaximkaSha/log_tools/internal/proto"
 )
 
 // Metrics describe metric structure.
@@ -48,6 +50,24 @@ func NewMetric(varID string, varType string, varDelta *int64, varValue *float64,
 		Hash:  varHash,
 	}
 
+}
+
+func (m *Metrics) ToProto() *pb.Metric {
+
+	if m.MType == "gauge" {
+		return &pb.Metric{
+			Id:    m.ID,
+			Mtype: pb.Metric_GAUGE,
+			Value: *m.Value,
+			Hash:  m.Hash,
+		}
+	}
+	return &pb.Metric{
+		Id:    m.ID,
+		Mtype: pb.Metric_COUNTER,
+		Delta: *m.Delta,
+		Hash:  m.Hash,
+	}
 }
 
 // Storager - Interface which is used app to save the data.

@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package log_tools;
+
+option go_package = "log_tools/internal/proto";
+
+message Metric {
+  string id = 1;
+  enum Mtype {
+    UNKNOWN = 0;
+    COUNTER = 1;
+    GAUGE = 2;
+ }
+  Mtype mtype = 2;
+  int64 delta = 3;
+  double value =4;
+  string hash = 5;
+}
+
+
+message AddMetricRequest {
+    Metric metric = 1;
+}
+
+message AddMetricResponse {
+}
+message AddMetricsRequest {
+    repeated Metric metrics = 1;
+    int64 size = 2;
+}
+message AddMetricsResponse {
+}
+service Metrics {
+  rpc AddMetric(AddMetricRequest) returns (AddMetricResponse);
+  rpc AddMetrics(AddMetricsRequest) returns (AddMetricsResponse);
+}

@@ -1,6 +1,7 @@
 package ciphers
 
 import (
+	"crypto/rsa"
 	"io/fs"
 	"os"
 	"testing"
@@ -121,6 +122,32 @@ func TestReadPublicKeyFromFile(t *testing.T) {
 			assert.Equal(t, readedPublicKey, pubKey)
 			os.Remove("priv.key")
 			os.Remove("pub.key")
+		})
+	}
+}
+
+func TestGenerateTLSCert(t *testing.T) {
+	type args struct {
+		key rsa.PrivateKey
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "pos1",
+			args: args{
+				key: rsa.PrivateKey{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := GenerateTLSCert(tt.args.key)
+			got2, got3 := GenerateTLSCert(tt.args.key)
+			assert.NotEqual(t, got, got2, "Certs are equal")
+			assert.NotEqual(t, got1, got3, "Certs are equal")
+			os.Remove("cert.pem")
 		})
 	}
 }

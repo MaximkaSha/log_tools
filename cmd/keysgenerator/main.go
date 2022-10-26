@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	priv, pub := ciphers.GenerateKeyPair(4096)
+	priv, pub := ciphers.GenerateKeyPair(2048)
 	privPem := ciphers.ExportRsaPrivateKeyAsPemStr(priv)
 	pubPem := ciphers.PublicKeyToBytes(pub)
 	pubKey, err := os.Create("pub.key")
@@ -37,5 +37,17 @@ func main() {
 		return
 	}
 	fmt.Println("Key generated successfully")
-
+	_, pemCert := ciphers.GenerateTLSCert(*priv)
+	pemCertFile, err := os.Create("cert.pem")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Fprintln(pemCertFile, string(pemCert))
+	err = pemCertFile.Close()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("Cert generated successfully")
 }

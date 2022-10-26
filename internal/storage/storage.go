@@ -32,8 +32,9 @@ func (r *Repository) InsertMetric(ctx context.Context, m models.Metrics) error {
 // DEPRICATED: use InsertMetric.
 func (r *Repository) AppendMetric(m models.Metrics) {
 	for i := range r.JSONDB {
-		if r.JSONDB[i].ID == m.ID {
-			if m.Delta != nil {
+		if (r.JSONDB[i].ID == m.ID) && (r.JSONDB[i].MType == m.MType) {
+			if m.MType == "counter" {
+				log.Printf("Model ID:%v,Model type: %s,Delta: %d\nStorage ID:%v,Storage mType:%s,Storage Delta:%d", m.ID, m.MType, *m.Delta, r.JSONDB[i].ID, r.JSONDB[i].MType, *r.JSONDB[i].Delta)
 				newDelta := *(r.JSONDB[i].Delta) + *(m.Delta)
 				r.JSONDB[i].Delta = &newDelta
 			}
